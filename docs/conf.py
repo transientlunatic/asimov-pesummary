@@ -68,4 +68,3 @@ html_theme = "kentigern"
 html_theme_options = {
     "navbar_title": "asimov-pesummary",
 }
-html_static_path = ["_static"]
