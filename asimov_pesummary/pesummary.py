@@ -14,8 +14,8 @@ from asimov import utils  # NoQA
 from asimov import config, logger, logging, LOGGER_LEVEL  # NoQA
 
 import otter  # NoQA
-from ..storage import Store  # NoQA
-from ..pipeline import Pipeline, PipelineException, PipelineLogger  # NoQA
+from asimov.storage import Store  # NoQA
+from asimov.pipeline import Pipeline, PipelineException, PipelineLogger  # NoQA
 
 
 class PESummary(Pipeline):
