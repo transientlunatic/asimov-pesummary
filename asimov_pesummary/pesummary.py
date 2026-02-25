@@ -30,6 +30,7 @@ class PESummary(Pipeline):
 
     def __init__(self, production, category=None):
         self.production = production
+        self.subject = production.event
 
         self.category = category if category else production.category
         self.logger = logger
@@ -43,11 +44,11 @@ class PESummary(Pipeline):
         of each results file as the key.  These may be nested if it
         makes sense for the output, for example skymaps.
 
-        For example
+        For example::
 
-        {'metafile': '/home/asimov/working/samples/metafile.hd5',
-         'skymaps': {'H1': '/another/file/path', ...}
-        }
+            {'metafile': '/home/asimov/working/samples/metafile.hd5',
+             'skymaps': {'H1': '/another/file/path', ...}
+            }
 
         Returns
         -------
