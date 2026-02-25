@@ -31,13 +31,13 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "asimov>=0.7",
+    "asimov>=0.7.0a1",
     "pesummary",
 ]
 
 [project.optional-dependencies]
 asimov = [
-    "asimov>=0.7",
+    "asimov>=0.7.0a1",
 ]
 docs = [
     "sphinx",
