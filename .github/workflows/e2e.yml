@@ -1,0 +1,149 @@
+name: End-to-end test (real summarypages)
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: "PESummary end-to-end test (HTCondor)"
+    runs-on: ubuntu-latest
+    container:
+      image: htcondor/mini:latest
+      options: --privileged
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup-htcondor
+
+      - name: Install base tools
+        run: |
+          yum install -y sudo git
+
+      - name: Create submit user
+        uses: ./.github/actions/create-submit-user
+
+      - name: Ensure submituser can access workspace
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/e2e_project"
+          chmod -R a+rwX "$GITHUB_WORKSPACE"
+
+      - name: Setup asimov-pesummary Environment
+        uses: ./.github/actions/setup-pesummary-env
+        with:
+          python-version: "3.11"
+
+      - name: Set up git
+        run: |
+          su - submituser <<SUBMITUSER
+          set -euo pipefail
+          git config --global init.defaultBranch master
+          git config --global user.email "you@example.com"
+          git config --global user.name "Your Name"
+          SUBMITUSER
+
+      - name: Create asimov project
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: cd e2e_project && asimov init "E2E Test Project"
+
+      - name: Configure asimov environment and condor user
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: |
+            cd e2e_project
+            CONDA_PYTHON_PREFIX="$(dirname "$(dirname "$(which python)")")"
+            asimov configuration update pipelines/environment "$CONDA_PYTHON_PREFIX"
+            asimov configuration update condor/user submituser
+
+      - name: Apply testing configuration and fake event
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: |
+            cd e2e_project
+            asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/testing_config.yaml"
+            asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/fake_event.yaml"
+
+      - name: Seed the pesummary-post config ini fixture
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: |
+            cd e2e_project/checkouts/FAKE_PE_TEST_EVENT
+            mkdir -p analyses
+            cat > analyses/pesummary-post.ini << 'EOF'
+            [engine]
+
+            run = pesummary-post
+            webdir = web_directory_of_run
+            summrypages_executable = pesummary
+            EOF
+            git add analyses/pesummary-post.ini
+            git commit -m "Seed pesummary-post ini fixture"
+
+      - name: Add and build the fake upstream PE production
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: |
+            cd e2e_project
+            asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/fake_pe_production.yaml" -e FAKE_PE_TEST_EVENT
+            asimov manage build submit
+
+      - name: Wait for fake PE fixtures
+        uses: ./.github/actions/wait-for-files
+        with:
+          patterns: "posterior_samples.dat"
+          directory: "working/FAKE_PE_TEST_EVENT/fake-pe"
+          timeout: "60"
+          interval: "5"
+          show-condor-q: "false"
+          working-directory: "e2e_project"
+
+      - name: Run asimov monitor for the fake PE production
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: cd e2e_project && asimov monitor
+
+      - name: Add and build the real PESummary production
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: |
+            cd e2e_project
+            asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/pesummary_production.yaml" -e FAKE_PE_TEST_EVENT
+            asimov manage build submit
+
+      - name: Wait for real summarypages output
+        uses: ./.github/actions/wait-for-files
+        with:
+          patterns: "posterior_samples.h5"
+          directory: "pages/FAKE_PE_TEST_EVENT/pesummary-post/pesummary/samples"
+          timeout: "600"
+          interval: "15"
+          working-directory: "e2e_project"
+
+      - name: Run asimov monitor for the PESummary production
+        uses: ./.github/actions/run-asimov-command
+        with:
+          script: cd e2e_project && asimov monitor
+
+      - name: Archive artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-debug
+          path: |
+            e2e_project/.asimov/
+            e2e_project/working/
+            e2e_project/checkouts/
+            e2e_project/pages/
+          retention-days: 5

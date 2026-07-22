@@ -51,6 +51,7 @@ test = [
 
 [project.entry-points."asimov.pipelines"]
 pesummary = "asimov_pesummary:PESummary"
+fakecbcpipeline = "asimov_pesummary.testing:FakeCBCPipeline"
 
 [project.urls]
 "Source code" = "https://git.ligo.org/asimov/asimov-pesummary"

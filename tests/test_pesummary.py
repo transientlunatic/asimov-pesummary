@@ -57,7 +57,7 @@ def make_production(pesummary_meta=None, approximant="IMRPhenomXPHM",
     approximant : str
         Waveform approximant name.
     min_freq : dict, optional
-        ``{ifo: Hz}`` mapping for ``quality.minimum frequency``.
+        ``{ifo: Hz}`` mapping for ``waveform.minimum frequency``.
         Defaults to ``{"H1": 20, "L1": 20, "V1": 20}``.
     assets : dict, optional
         Overrides for the dict returned by ``_previous_assets()``.
@@ -81,8 +81,6 @@ def make_production(pesummary_meta=None, approximant="IMRPhenomXPHM",
         "waveform": {
             "approximant": approximant,
             "reference frequency": 20,
-        },
-        "quality": {
             "minimum frequency": min_freq or {"H1": 20, "L1": 20, "V1": 20},
         },
         "postprocessing": {
