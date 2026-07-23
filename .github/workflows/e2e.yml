@@ -342,7 +342,12 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: summarypages-site
-          path: site
+          path: site/pesummary-post
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: summarypages-subject-site
+          path: site/pesummary-subject
 
       - name: Compute publish destination
         id: dest
