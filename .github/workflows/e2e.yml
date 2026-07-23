@@ -349,6 +349,32 @@ jobs:
           name: summarypages-subject-site
           path: site/pesummary-subject
 
+      - name: Add a landing page linking to both published sites
+        # Since summarypages-site and summarypages-subject-site now live
+        # side by side under their own subdirectories, there's no longer
+        # any content at the destination root itself -- visiting the bare
+        # preview URL (or the old pre-SubjectAnalysis `home.html` path)
+        # would just 404. Give the root both an index.html (served
+        # automatically for directory-style URLs) and a home.html alias
+        # (matching pesummary's own entry-point filename, in case that's
+        # what someone remembers/bookmarks) so it resolves to something
+        # useful either way.
+        run: |
+          cat > site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>asimov-pesummary preview</title></head>
+          <body>
+          <h1>asimov-pesummary summarypages preview</h1>
+          <ul>
+            <li><a href="pesummary-post/home.html">pesummary-post (single-analysis)</a></li>
+            <li><a href="pesummary-subject/home.html">pesummary-subject (SubjectAnalysis combine + refresh)</a></li>
+          </ul>
+          </body>
+          </html>
+          EOF
+          cp site/index.html site/home.html
+
       - name: Compute publish destination
         id: dest
         run: |
