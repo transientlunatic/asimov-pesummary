@@ -71,6 +71,22 @@ jobs:
             asimov configuration update pipelines/environment "$CONDA_PREFIX"
             asimov configuration update condor/user submituser
 
+      - name: Diagnose asimov.pipelines entry-point discovery as submituser
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            python3 -c "
+            from importlib.metadata import entry_points
+            eps = [ep for ep in entry_points(group='asimov.pipelines') if ep.value.startswith('asimov_pesummary')]
+            print('Discovered asimov_pesummary entry points:', eps)
+            for ep in eps:
+                try:
+                    ep.load()
+                    print(f'  {ep.name}: loaded OK')
+                except Exception as e:
+                    print(f'  {ep.name}: FAILED TO LOAD: {e!r}')
+            "
+
       - name: Apply testing configuration and fake event
         uses: etive-io/actions/run-asimov-command@v1
         with:
