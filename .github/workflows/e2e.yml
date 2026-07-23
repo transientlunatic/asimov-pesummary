@@ -172,14 +172,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    # Multiple triggers can land on the same commit (e.g. a same-repo PR
-    # branch fires both `push` and `pull_request`), producing concurrent
-    # workflow runs that all try to push to gh-pages at once and race on the
-    # ref lock ("cannot lock ref ... reference already exists"). Serialize
-    # publishes repo-wide; queue rather than cancel, since each one's
-    # destination_dir content should still get published, not dropped.
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # This repo's Pages source is workflow-based (actions/deploy-pages),
+    # which atomically replaces the whole live site on every deploy - so
+    # this job and docs.yml's deploy both merge into, then fully redeploy,
+    # the same persistent `pages-content` tree (see
+    # merge-into-pages-branch) and must never run concurrently, or one
+    # could redeploy a snapshot that's missing the other's just-added
+    # content. Same concurrency group as docs.yml's `pages` group.
     concurrency:
-      group: publish-pages
+      group: pages
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
@@ -200,10 +206,18 @@ jobs:
             echo "dir=branch/${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Merge preview into the persistent pages-content branch
+        uses: ./.github/actions/merge-into-pages-branch
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          content_dir: site
           destination_dir: ${{ steps.dest.outputs.dir }}
-          keep_files: true
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: merged-site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
