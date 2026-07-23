@@ -8,3 +8,7 @@ comment: Fake upstream PE production for asimov-pesummary end-to-end testing
 status: ready
 waveform:
   approximant: IMRPhenomD
+  reference frequency: 20
+  minimum frequency:
+    H1: 20
+    L1: 20

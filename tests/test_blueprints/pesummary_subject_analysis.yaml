@@ -1,0 +1,14 @@
+# Test blueprint for the PESummary SubjectAnalysis end-to-end test. Combines
+# every FakeCBCPipeline production on the event into one set of summary
+# pages, and is `refreshable` so that adding a further FakeCBCPipeline
+# production later (fake-pe-3) and re-running `asimov monitor` triggers an
+# incremental `summarypages --add_to_existing` refresh rather than a full
+# rebuild.
+kind: analysis
+name: pesummary-subject
+pipeline: pesummary
+comment: PESummary SubjectAnalysis end-to-end test (combine + incremental refresh)
+analyses:
+  - pipeline: fakecbcpipeline
+refreshable: true
+status: ready

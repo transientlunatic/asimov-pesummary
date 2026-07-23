@@ -1,0 +1,13 @@
+# A second FakeCBCPipeline production, so there are >=2 upstream analyses
+# for the PESummary SubjectAnalysis end-to-end test to combine.
+kind: analysis
+name: fake-pe-2
+pipeline: fakecbcpipeline
+comment: Second fake upstream PE production, for PESummary SubjectAnalysis testing
+status: ready
+waveform:
+  approximant: IMRPhenomD
+  reference frequency: 20
+  minimum frequency:
+    H1: 20
+    L1: 20
