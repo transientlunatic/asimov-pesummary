@@ -63,8 +63,11 @@ jobs:
         with:
           script: |
             cd e2e_project
-            CONDA_PYTHON_PREFIX="$(dirname "$(dirname "$(which python)")")"
-            asimov configuration update pipelines/environment "$CONDA_PYTHON_PREFIX"
+            if [ -z "$CONDA_PREFIX" ] || [ ! -x "$CONDA_PREFIX/bin/summarypages" ]; then
+              echo "::error::CONDA_PREFIX ('$CONDA_PREFIX') does not contain bin/summarypages" >&2
+              exit 1
+            fi
+            asimov configuration update pipelines/environment "$CONDA_PREFIX"
             asimov configuration update condor/user submituser
 
       - name: Apply testing configuration and fake event
