@@ -2,7 +2,8 @@ name: End-to-end test (real summarypages)
 
 on:
   push:
-    branches: [master]
+    branches: ['**']
+    tags: ['*']
   pull_request:
     branches: [master]
 
@@ -139,6 +140,13 @@ jobs:
         with:
           script: cd e2e_project && asimov monitor
 
+      - name: Upload summarypages site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: summarypages-site
+          path: e2e_project/pages/FAKE_PE_TEST_EVENT/pesummary-post/pesummary
+          retention-days: 5
+
       - name: Archive artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -150,3 +158,43 @@ jobs:
             e2e_project/checkouts/
             e2e_project/pages/
           retention-days: 5
+
+  publish-pages:
+    name: "Publish summarypages site to GitHub Pages"
+    needs: e2e
+    # Skip (rather than fail) for pull requests from forks: GITHUB_TOKEN is
+    # read-only there regardless of the `permissions:` block above, so the
+    # push to gh-pages would otherwise fail with a permission error.
+    if: >-
+      needs.e2e.result == 'success' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: summarypages-site
+          path: site
+
+      - name: Compute publish destination
+        id: dest
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "dir=pr/${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "dir=tag/${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=branch/${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          destination_dir: ${{ steps.dest.outputs.dir }}
+          keep_files: true
