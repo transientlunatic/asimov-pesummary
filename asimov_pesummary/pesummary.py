@@ -1,17 +1,10 @@
 """Defines the interface with generic analysis pipelines."""
 
 import os
-import warnings
-
-try:
-    warnings.filterwarnings("ignore", module="htcondor2")
-    import htcondor2 as htcondor # NoQA
-except ImportError:
-    warnings.filterwarnings("ignore", module="htcondor")
-    import htcondor  # NoQA
 
 from asimov import utils  # NoQA
 from asimov import config, logger, logging, LOGGER_LEVEL  # NoQA
+from asimov.scheduler_utils import create_job_from_dict  # NoQA
 
 import otter  # NoQA
 from asimov.storage import Store  # NoQA
@@ -35,6 +28,11 @@ class PESummary(Pipeline):
         self.category = category if category else production.category
         self.logger = logger
         self.meta = self.production.meta["postprocessing"][self.name.lower()]
+
+        # Required by the base Pipeline.scheduler property; not calling
+        # super().__init__() here since this class sets up its attributes
+        # differently (e.g. category fallback, plain module logger).
+        self._scheduler = None
 
     def results(self):
         """
@@ -68,6 +66,15 @@ class PESummary(Pipeline):
 
         return dict(metafile=metafile)
 
+    def build_dag(self, user=None, dryrun=False):
+        """
+        No-op: PESummary has no separate build step. All of the work
+        happens in ``submit_dag``, but asimov's generic ``manage build
+        submit`` CLI unconditionally calls ``build_dag`` on every pipeline
+        before ``submit_dag``, so this must exist.
+        """
+        pass
+
     def submit_dag(self, dryrun=False):
         """
         Run PESummary on the results of this job.
@@ -99,7 +106,7 @@ class PESummary(Pipeline):
 
         command += [
             "--f_low",
-            str(min(self.production.meta["quality"]["minimum frequency"].values())),
+            str(min(self.production.meta["waveform"]["minimum frequency"].values())),
             "--f_ref",
             str(self.production.meta["waveform"]["reference frequency"]),
         ]
@@ -205,20 +212,8 @@ class PESummary(Pipeline):
             print(submit_description)
 
         if not dryrun:
-            hostname_job = htcondor.Submit(submit_description)
-
-            try:
-                # There should really be a specified submit node, and if there is, use it.
-                schedulers = htcondor.Collector().locate(
-                    htcondor.DaemonTypes.Schedd, config.get("condor", "scheduler")
-                )
-                schedd = htcondor.Schedd(schedulers)
-            except:  # NoQA
-                # If you can't find a specified scheduler, use the first one you find
-                schedd = htcondor.Schedd()
-            with schedd.transaction() as txn:
-                cluster_id = hostname_job.queue(txn)
-
+            job = create_job_from_dict(submit_description)
+            cluster_id = self.scheduler.submit(job)
         else:
             cluster_id = 0
 

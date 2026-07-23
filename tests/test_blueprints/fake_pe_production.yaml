@@ -1,0 +1,10 @@
+# Test blueprint for FakeCBCPipeline: stands in for a real sampler, producing
+# a small but genuinely-parseable posterior samples file and PSDs, so that a
+# downstream PESummary production can run the real `summarypages` against it.
+kind: analysis
+name: fake-pe
+pipeline: fakecbcpipeline
+comment: Fake upstream PE production for asimov-pesummary end-to-end testing
+status: ready
+waveform:
+  approximant: IMRPhenomD

@@ -1,0 +1,15 @@
+# Configuration for the asimov-pesummary end-to-end test.
+#
+# This is *only* intended for exercising the asimov-pesummary <-> summarypages
+# integration quickly in CI. It is not a realistic PE configuration.
+#
+# Note: `waveform.approximant/reference frequency/minimum frequency` are set
+# directly on each production blueprint rather than here, since asimov does
+# not merge project-level `waveform` config down into per-production meta.
+kind: configuration
+
+postprocessing:
+  pesummary:
+    accounting group: ligo.dev.o4.cbc.pe.lalinference
+    multiprocess: 1
+    skymap samples: 10

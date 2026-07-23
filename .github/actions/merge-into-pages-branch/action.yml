@@ -1,0 +1,88 @@
+name: 'Merge into persistent Pages branch'
+description: >
+  This repo's GitHub Pages source is workflow-based (actions/deploy-pages),
+  which atomically replaces the entire live site on every deployment - there
+  is no built-in way for one deployment to remember what a previous,
+  unrelated deployment published. To let the Sphinx docs and per-branch/
+  tag/PR summarypages previews coexist, this action merges freshly-built
+  content into a persistent orphan branch that acts as our own storage for
+  the full desired site tree, then leaves that full tree checked out in
+  `output_dir` so the calling workflow can upload it wholesale via
+  actions/upload-pages-artifact and deploy it.
+inputs:
+  github_token:
+    description: 'Token with push access to this repository'
+    required: true
+  content_dir:
+    description: 'Local directory containing the new content to publish'
+    required: true
+  destination_dir:
+    description: >
+      Path within the persisted tree that content_dir replaces. Empty
+      string means the tree root - in that case everything at root is
+      replaced EXCEPT the paths listed in protected_paths.
+    required: true
+  protected_paths:
+    description: >
+      Space-separated top-level paths in the tree that must never be
+      deleted when destination_dir is empty (root). Ignored otherwise.
+    default: 'branch tag pr'
+  storage_branch:
+    description: 'Orphan branch used as persistent storage for the full site tree'
+    default: 'pages-content'
+  output_dir:
+    description: 'Where to check out the full merged tree afterwards'
+    default: 'merged-site'
+runs:
+  using: "composite"
+  steps:
+    - name: Merge content into persistent storage branch
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        REPO_URL="https://x-access-token:${{ inputs.github_token }}@${GITHUB_SERVER_URL#https://}/${GITHUB_REPOSITORY}.git"
+        STORAGE_BRANCH="${{ inputs.storage_branch }}"
+        CONTENT_DIR="$(cd "${{ inputs.content_dir }}" && pwd)"
+        DESTINATION_DIR="${{ inputs.destination_dir }}"
+        OUTPUT_DIR="${{ inputs.output_dir }}"
+        PROTECTED_PATHS="${{ inputs.protected_paths }}"
+
+        rm -rf "$OUTPUT_DIR"
+
+        if git clone -q --branch "$STORAGE_BRANCH" --single-branch "$REPO_URL" "$OUTPUT_DIR" 2>/dev/null; then
+          echo "Cloned existing $STORAGE_BRANCH"
+        else
+          echo "$STORAGE_BRANCH doesn't exist yet; creating it as an orphan branch"
+          git clone -q "$REPO_URL" "$OUTPUT_DIR"
+          (cd "$OUTPUT_DIR" && git checkout -q --orphan "$STORAGE_BRANCH" && git rm -rfq . >/dev/null 2>&1 || true)
+        fi
+
+        cd "$OUTPUT_DIR"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+
+        if [ -z "$DESTINATION_DIR" ]; then
+          for entry in * .[!.]*; do
+            [ -e "$entry" ] || continue
+            [ "$entry" = ".git" ] && continue
+            skip=false
+            for p in $PROTECTED_PATHS; do
+              [ "$entry" = "$p" ] && skip=true
+            done
+            [ "$skip" = false ] && rm -rf "$entry"
+          done
+          cp -a "$CONTENT_DIR/." ./
+        else
+          rm -rf "$DESTINATION_DIR"
+          mkdir -p "$DESTINATION_DIR"
+          cp -a "$CONTENT_DIR/." "$DESTINATION_DIR/"
+        fi
+
+        git add -A
+        if git diff --cached --quiet; then
+          echo "No changes to publish."
+        else
+          git commit -q -m "Publish ${DESTINATION_DIR:-docs}"
+        fi
+        git push -q origin "HEAD:$STORAGE_BRANCH"

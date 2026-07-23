@@ -1,0 +1,7 @@
+# A minimal event for the asimov-pesummary end-to-end test. FakeCBCPipeline
+# never touches real strain data, so this doesn't need real GWOSC metadata.
+kind: event
+name: FAKE_PE_TEST_EVENT
+interferometers:
+- H1
+- L1

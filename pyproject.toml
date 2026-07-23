@@ -51,12 +51,16 @@ test = [
 
 [project.entry-points."asimov.pipelines"]
 pesummary = "asimov_pesummary:PESummary"
+fakecbcpipeline = "asimov_pesummary.testing:FakeCBCPipeline"
 
 [project.urls]
 "Source code" = "https://git.ligo.org/asimov/asimov-pesummary"
 
 [tool.setuptools]
 packages = ["asimov_pesummary"]
+
+[tool.setuptools.package-data]
+asimov_pesummary = ["configs/*.ini"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

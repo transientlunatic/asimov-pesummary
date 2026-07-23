@@ -1,0 +1,16 @@
+# Test blueprint for the real PESummary production under test. It `needs:`
+# the fake-pe production, and picks up its samples/PSDs via
+# `_previous_assets()`.
+kind: analysis
+name: pesummary-post
+pipeline: pesummary
+comment: PESummary end-to-end test production
+status: ready
+needs:
+  - fake-pe
+waveform:
+  approximant: IMRPhenomD
+  reference frequency: 20
+  minimum frequency:
+    H1: 20
+    L1: 20

@@ -6,12 +6,18 @@ on:
   workflow_dispatch:
 
 # Grant the GITHUB_TOKEN the minimum permissions needed to deploy pages.
+# `contents: write` is needed to push the built docs into the persistent
+# `pages-content` storage branch (see merge-into-pages-branch) - this repo's
+# Pages source is workflow-based, so that branch is the only thing that
+# remembers what the summarypages e2e previews (published by e2e.yml)
+# published, across this workflow's own deployments.
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment; do not cancel an in-progress run.
+# Shared with e2e.yml's publish-pages job: both merge into and then fully
+# redeploy the same pages-content tree, and must never run concurrently.
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -34,10 +40,17 @@ jobs:
       - name: Build HTML documentation
         run: python -m sphinx docs/ docs/_build/html -W
 
+      - name: Merge docs into the persistent pages-content branch
+        uses: ./.github/actions/merge-into-pages-branch
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          content_dir: docs/_build/html
+          destination_dir: ""
+
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/_build/html
+          path: merged-site
 
   deploy:
     name: Deploy to GitHub Pages
