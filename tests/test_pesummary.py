@@ -493,6 +493,14 @@ class TestPESummaryBashFile(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 class TestPESummaryHTCondorSubmit(unittest.TestCase):
+    """Exercises submit_dag's use of the asimov 0.7 scheduler interface
+    (self.scheduler.submit(...)), rather than the hand-rolled htcondor2
+    Submit/Schedd/transaction calls this used to make directly. The
+    scheduler is mocked; ``_submitted_job`` decodes what was passed to
+    ``scheduler.submit`` back into an HTCondor-style dict via
+    ``JobDescription.to_htcondor()`` so the assertions below stay close to
+    the original submit-description shape.
+    """
 
     def setUp(self):
         self.production = make_production()
@@ -505,72 +513,77 @@ class TestPESummaryHTCondorSubmit(unittest.TestCase):
         self._open = mock_open()
         patch("builtins.open", self._open).start()
 
-        self.mock_htcondor = patch("asimov_pesummary.pesummary.htcondor").start()
-        self.mock_htcondor.Submit.return_value.queue.return_value = 42
-
         self.addCleanup(patch.stopall)
         self.pipeline = PESummary(self.production)
+        self.mock_scheduler = MagicMock()
+        self.mock_scheduler.submit.return_value = 42
+        self.pipeline._scheduler = self.mock_scheduler
 
-    def test_dryrun_does_not_call_htcondor_submit(self):
+    def _submitted_job(self):
+        job = self.mock_scheduler.submit.call_args[0][0]
+        return job.to_htcondor()
+
+    def test_dryrun_does_not_call_scheduler_submit(self):
         self.pipeline.submit_dag(dryrun=True)
-        self.mock_htcondor.Submit.assert_not_called()
+        self.mock_scheduler.submit.assert_not_called()
 
     def test_dryrun_returns_zero(self):
         self.assertEqual(self.pipeline.submit_dag(dryrun=True), 0)
 
-    def test_htcondor_submit_called_on_live_run(self):
+    def test_scheduler_submit_called_on_live_run(self):
         self.pipeline.submit_dag(dryrun=False)
-        self.mock_htcondor.Submit.assert_called_once()
+        self.mock_scheduler.submit.assert_called_once()
 
     def test_submit_description_contains_executable(self):
         self.pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertIn("executable", desc)
 
     def test_submit_description_contains_arguments(self):
         self.pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertIn("arguments", desc)
 
     def test_submit_description_request_cpus(self):
         self.pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertEqual(desc["request_cpus"], 4)
 
     def test_submit_description_accounting_group(self):
         self.pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertEqual(
             desc["accounting_group"], "ligo.dev.o4.cbc.pe.lalinference"
         )
 
     def test_submit_description_accounting_group_user(self):
         self.pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertEqual(desc["accounting_group_user"], "testuser")
 
     def test_no_accounting_group_when_absent(self):
         prod = make_production()
         del prod.meta["postprocessing"]["pesummary"]["accounting group"]
         pipeline = PESummary(prod)
+        pipeline._scheduler = self.mock_scheduler
         pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertNotIn("accounting_group", desc)
         self.assertNotIn("accounting_group_user", desc)
 
     def test_returns_cluster_id(self):
-        self.mock_htcondor.Submit.return_value.queue.return_value = 99
+        self.mock_scheduler.submit.return_value = 99
         result = self.pipeline.submit_dag(dryrun=False)
         self.assertEqual(result, 99)
 
     def test_submit_description_batch_name_includes_event(self):
         self.pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertIn("GW150914", desc["batch_name"])
 
     def test_submit_description_batch_name_includes_production(self):
         self.pipeline.submit_dag(dryrun=False)
-        desc = self.mock_htcondor.Submit.call_args[0][0]
+        desc = self._submitted_job()
         self.assertIn("Prod0", desc["batch_name"])
 
 

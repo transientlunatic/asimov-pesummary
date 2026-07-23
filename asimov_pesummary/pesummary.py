@@ -1,17 +1,10 @@
 """Defines the interface with generic analysis pipelines."""
 
 import os
-import warnings
-
-try:
-    warnings.filterwarnings("ignore", module="htcondor2")
-    import htcondor2 as htcondor # NoQA
-except ImportError:
-    warnings.filterwarnings("ignore", module="htcondor")
-    import htcondor  # NoQA
 
 from asimov import utils  # NoQA
 from asimov import config, logger, logging, LOGGER_LEVEL  # NoQA
+from asimov.scheduler_utils import create_job_from_dict  # NoQA
 
 import otter  # NoQA
 from asimov.storage import Store  # NoQA
@@ -35,6 +28,11 @@ class PESummary(Pipeline):
         self.category = category if category else production.category
         self.logger = logger
         self.meta = self.production.meta["postprocessing"][self.name.lower()]
+
+        # Required by the base Pipeline.scheduler property; not calling
+        # super().__init__() here since this class sets up its attributes
+        # differently (e.g. category fallback, plain module logger).
+        self._scheduler = None
 
     def results(self):
         """
@@ -214,20 +212,8 @@ class PESummary(Pipeline):
             print(submit_description)
 
         if not dryrun:
-            hostname_job = htcondor.Submit(submit_description)
-
-            try:
-                # There should really be a specified submit node, and if there is, use it.
-                schedulers = htcondor.Collector().locate(
-                    htcondor.DaemonTypes.Schedd, config.get("condor", "scheduler")
-                )
-                schedd = htcondor.Schedd(schedulers)
-            except:  # NoQA
-                # If you can't find a specified scheduler, use the first one you find
-                schedd = htcondor.Schedd()
-            with schedd.transaction() as txn:
-                cluster_id = hostname_job.queue(txn)
-
+            job = create_job_from_dict(submit_description)
+            cluster_id = self.scheduler.submit(job)
         else:
             cluster_id = 0
 
