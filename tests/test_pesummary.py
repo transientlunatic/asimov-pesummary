@@ -136,6 +136,15 @@ class TestPESummaryInit(unittest.TestCase):
         pipeline = PESummary(self.production)
         self.assertIsNotNone(pipeline.logger)
 
+    def test_build_dag_exists_and_is_a_noop(self):
+        """asimov's `manage build submit` CLI unconditionally calls
+        `pipe.build_dag(dryrun=...)` on every pipeline before `submit_dag`,
+        regardless of whether the pipeline has any real build step. Without
+        this method the CLI crashes with an uncaught AttributeError."""
+        pipeline = PESummary(self.production)
+        pipeline.build_dag(dryrun=True)
+        pipeline.build_dag(dryrun=False)
+
 
 # ---------------------------------------------------------------------------
 # TestPESummaryResults

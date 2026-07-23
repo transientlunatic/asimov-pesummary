@@ -68,6 +68,15 @@ class PESummary(Pipeline):
 
         return dict(metafile=metafile)
 
+    def build_dag(self, user=None, dryrun=False):
+        """
+        No-op: PESummary has no separate build step. All of the work
+        happens in ``submit_dag``, but asimov's generic ``manage build
+        submit`` CLI unconditionally calls ``build_dag`` on every pipeline
+        before ``submit_dag``, so this must exist.
+        """
+        pass
+
     def submit_dag(self, dryrun=False):
         """
         Run PESummary on the results of this job.
