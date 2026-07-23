@@ -172,6 +172,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # Multiple triggers can land on the same commit (e.g. a same-repo PR
+    # branch fires both `push` and `pull_request`), producing concurrent
+    # workflow runs that all try to push to gh-pages at once and race on the
+    # ref lock ("cannot lock ref ... reference already exists"). Serialize
+    # publishes repo-wide; queue rather than cancel, since each one's
+    # destination_dir content should still get published, not dropped.
+    concurrency:
+      group: publish-pages
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v5
 
