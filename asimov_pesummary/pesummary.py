@@ -4,7 +4,6 @@ import os
 
 from asimov import utils  # NoQA
 from asimov import config, logger, logging, LOGGER_LEVEL  # NoQA
-from asimov.analysis import SubjectAnalysis  # NoQA
 from asimov.scheduler_utils import create_job_from_dict  # NoQA
 
 import otter  # NoQA
@@ -36,6 +35,18 @@ class PESummary(Pipeline):
     name = "PESummary"
 
     def __init__(self, production, category=None):
+        # Imported here rather than at module level: asimov's own
+        # asimov/analysis.py imports asimov/pipelines/__init__.py (to build
+        # known_pipelines) before it finishes defining SubjectAnalysis, and
+        # pipelines/__init__.py loads every registered third-party pipeline
+        # plugin -- including this one -- as part of that same import. A
+        # module-level `from asimov.analysis import SubjectAnalysis` here
+        # would hit asimov.analysis mid-initialisation and raise ImportError,
+        # which asimov's plugin loader swallows silently, dropping this
+        # pipeline (and this package's other entry points) from
+        # known_pipelines with no visible error.
+        from asimov.analysis import SubjectAnalysis
+
         self.production = production
         self.subject = production.event
         self.is_subject_analysis = isinstance(production, SubjectAnalysis)
