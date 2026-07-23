@@ -4,3 +4,4 @@ docs/_*
 *.log
 __pycache__/
 dist/*
+.claude

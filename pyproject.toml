@@ -59,6 +59,9 @@ fakecbcpipeline = "asimov_pesummary.testing:FakeCBCPipeline"
 [tool.setuptools]
 packages = ["asimov_pesummary"]
 
+[tool.setuptools.package-data]
+asimov_pesummary = ["configs/*.ini"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

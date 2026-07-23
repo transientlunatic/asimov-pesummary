@@ -19,6 +19,7 @@ This module is only useful for testing and is not registered for use in
 production ledgers.
 """
 
+import importlib.resources
 import os
 
 import numpy as np
@@ -62,6 +63,24 @@ class FakeCBCPipeline(Pipeline):
     def __init__(self, production, category=None):
         super().__init__(production, category)
         self.logger.info("Using the FakeCBCPipeline for testing")
+
+    @property
+    def config_template(self):
+        """
+        A trivial bundled config template.
+
+        Asimov's generic ``manage build`` step calls ``production.make_config()``
+        to render a production's own ``.ini`` from a template whenever one
+        doesn't already exist in the event repository. Without this, asimov
+        falls back to looking for a ``fakecbcpipeline.ini`` template inside its
+        own package, which doesn't exist. This just needs to be *some* valid
+        config; nothing downstream reads its contents.
+        """
+        return str(
+            importlib.resources.files("asimov_pesummary").joinpath(
+                "configs/fakecbcpipeline.ini"
+            )
+        )
 
     def _ensure_rundir(self):
         if not self.production.rundir:
