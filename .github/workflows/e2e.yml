@@ -26,14 +26,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./.github/actions/setup-htcondor
+      - uses: etive-io/actions/setup-htcondor@v1
 
       - name: Install base tools
         run: |
           yum install -y sudo git
 
       - name: Create submit user
-        uses: ./.github/actions/create-submit-user
+        uses: etive-io/actions/create-submit-user@v1
 
       - name: Ensure submituser can access workspace
         run: |
@@ -55,12 +55,12 @@ jobs:
           SUBMITUSER
 
       - name: Create asimov project
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: cd e2e_project && asimov init "E2E Test Project"
 
       - name: Configure asimov environment and condor user
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: |
             cd e2e_project
@@ -72,7 +72,7 @@ jobs:
             asimov configuration update condor/user submituser
 
       - name: Apply testing configuration and fake event
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: |
             cd e2e_project
@@ -80,7 +80,7 @@ jobs:
             asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/fake_event.yaml"
 
       - name: Seed the pesummary-post config ini fixture
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: |
             cd e2e_project/checkouts/FAKE_PE_TEST_EVENT
@@ -96,7 +96,7 @@ jobs:
             git commit -m "Seed pesummary-post ini fixture"
 
       - name: Add and build the fake upstream PE production
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: |
             cd e2e_project
@@ -104,7 +104,7 @@ jobs:
             asimov manage build submit
 
       - name: Wait for fake PE fixtures
-        uses: ./.github/actions/wait-for-files
+        uses: etive-io/actions/wait-for-files@v1
         with:
           patterns: "posterior_samples.dat"
           directory: "working/FAKE_PE_TEST_EVENT/fake-pe"
@@ -114,12 +114,12 @@ jobs:
           working-directory: "e2e_project"
 
       - name: Run asimov monitor for the fake PE production
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: cd e2e_project && asimov monitor
 
       - name: Add and build the real PESummary production
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: |
             cd e2e_project
@@ -127,7 +127,7 @@ jobs:
             asimov manage build submit
 
       - name: Wait for real summarypages output
-        uses: ./.github/actions/wait-for-files
+        uses: etive-io/actions/wait-for-files@v1
         with:
           patterns: "posterior_samples.h5"
           directory: "pages/FAKE_PE_TEST_EVENT/pesummary-post/pesummary/samples"
@@ -136,7 +136,7 @@ jobs:
           working-directory: "e2e_project"
 
       - name: Run asimov monitor for the PESummary production
-        uses: ./.github/actions/run-asimov-command
+        uses: etive-io/actions/run-asimov-command@v1
         with:
           script: cd e2e_project && asimov monitor
 
