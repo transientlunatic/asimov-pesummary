@@ -45,6 +45,16 @@ runs:
         CONDA_PYTHON="${CONDA_BASE}/envs/asimov/bin/python"
         "$CONDA_PYTHON" -m ensurepip --upgrade
         "$CONDA_PYTHON" -m pip install --force-reinstall -e ".[test]"
+        # Regular (non-editable) installs set explicit, world-readable
+        # permissions from the wheel's RECORD; an editable install's
+        # metadata (entry_points.txt etc.) is instead written fresh by pip
+        # subject to the current process umask. This step runs as root, and
+        # under a restrictive root umask the resulting dist-info can end up
+        # unreadable by `submituser` -- which silently drops this package's
+        # `asimov.pipelines` entry points (asimov's own plugin loader
+        # catches and swallows the failure) rather than erroring here.
+        # Force everything world-readable so submituser can always see it.
+        chmod -R a+rX "$CONDA_BASE/envs/asimov"
         echo "Installed asimov-pesummary from: $("$CONDA_PYTHON" -c 'import asimov_pesummary; print(asimov_pesummary.__file__)')"
         echo "Installed asimov from: $("$CONDA_PYTHON" -c 'import asimov; print(asimov.__file__)')"
         echo "Installed summarypages at: $("$CONDA_PYTHON" -c 'import shutil; print(shutil.which("summarypages"))')"

@@ -1,0 +1,15 @@
+# A third FakeCBCPipeline production, added *after* the PESummary
+# SubjectAnalysis has already run once, so that re-running `asimov monitor`
+# exercises its refreshable/incremental (`--add_to_existing`) code path
+# rather than the initial full combine.
+kind: analysis
+name: fake-pe-3
+pipeline: fakecbcpipeline
+comment: Third fake upstream PE production, added to trigger an incremental PESummary refresh
+status: ready
+waveform:
+  approximant: IMRPhenomD
+  reference frequency: 20
+  minimum frequency:
+    H1: 20
+    L1: 20

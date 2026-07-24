@@ -71,6 +71,22 @@ jobs:
             asimov configuration update pipelines/environment "$CONDA_PREFIX"
             asimov configuration update condor/user submituser
 
+      - name: Diagnose asimov.pipelines entry-point discovery as submituser
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            python3 -c "
+            from importlib.metadata import entry_points
+            eps = [ep for ep in entry_points(group='asimov.pipelines') if ep.value.startswith('asimov_pesummary')]
+            print('Discovered asimov_pesummary entry points:', eps)
+            for ep in eps:
+                try:
+                    ep.load()
+                    print(f'  {ep.name}: loaded OK')
+                except Exception as e:
+                    print(f'  {ep.name}: FAILED TO LOAD: {e!r}')
+            "
+
       - name: Apply testing configuration and fake event
         uses: etive-io/actions/run-asimov-command@v1
         with:
@@ -147,6 +163,139 @@ jobs:
           path: e2e_project/pages/FAKE_PE_TEST_EVENT/pesummary-post/pesummary
           retention-days: 5
 
+      # --- PESummary SubjectAnalysis: combine + incremental refresh -------
+      #
+      # A second phase, exercising PESummary attached to an asimov
+      # SubjectAnalysis: combining several FakeCBCPipeline productions into
+      # one set of summary pages, then adding a further production later
+      # and confirming the refresh uses `summarypages --add_to_existing`
+      # (incremental) rather than recombining everything from scratch.
+
+      - name: Add and build the second fake upstream PE production
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            cd e2e_project
+            asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/fake_pe_production_2.yaml" -e FAKE_PE_TEST_EVENT
+            asimov manage build submit
+
+      - name: Wait for second fake PE fixtures
+        uses: etive-io/actions/wait-for-files@v1
+        with:
+          patterns: "posterior_samples.dat"
+          directory: "working/FAKE_PE_TEST_EVENT/fake-pe-2"
+          timeout: "60"
+          interval: "5"
+          show-condor-q: "false"
+          working-directory: "e2e_project"
+
+      - name: Run asimov monitor for the second fake PE production
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: cd e2e_project && asimov monitor
+
+      - name: Add and build the PESummary SubjectAnalysis production
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            cd e2e_project
+            asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/pesummary_subject_analysis.yaml" -e FAKE_PE_TEST_EVENT
+            asimov manage build submit
+
+      - name: Wait for combined summarypages output
+        uses: etive-io/actions/wait-for-files@v1
+        with:
+          patterns: "posterior_samples.h5"
+          directory: "pages/FAKE_PE_TEST_EVENT/pesummary-subject/pesummary/samples"
+          timeout: "600"
+          interval: "15"
+          working-directory: "e2e_project"
+
+      - name: Run asimov monitor for the PESummary SubjectAnalysis production
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: cd e2e_project && asimov monitor
+
+      - name: Verify the initial combine includes both source analyses
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            cd e2e_project
+            python3 -c "
+            import h5py
+            with h5py.File('pages/FAKE_PE_TEST_EVENT/pesummary-subject/pesummary/samples/posterior_samples.h5', 'r') as f:
+                groups = set(f.keys())
+            expected = {'fake-pe', 'fake-pe-2'}
+            assert expected <= groups, f'expected {expected} in {groups}'
+            "
+            if grep -q -- '--add_to_existing' working/FAKE_PE_TEST_EVENT/pesummary.sh; then
+              echo "::error::Initial PESummary SubjectAnalysis combine unexpectedly used --add_to_existing"
+              cat working/FAKE_PE_TEST_EVENT/pesummary.sh
+              exit 1
+            fi
+
+      - name: Add and build the third fake upstream PE production
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            cd e2e_project
+            asimov apply -f "$GITHUB_WORKSPACE/tests/test_blueprints/fake_pe_production_3.yaml" -e FAKE_PE_TEST_EVENT
+            asimov manage build submit
+
+      - name: Wait for third fake PE fixtures
+        uses: etive-io/actions/wait-for-files@v1
+        with:
+          patterns: "posterior_samples.dat"
+          directory: "working/FAKE_PE_TEST_EVENT/fake-pe-3"
+          timeout: "60"
+          interval: "5"
+          show-condor-q: "false"
+          working-directory: "e2e_project"
+
+      - name: Run asimov monitor to trigger the refreshable PESummary SubjectAnalysis
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: cd e2e_project && asimov monitor
+
+      - name: Wait for the PESummary SubjectAnalysis refresh to include fake-pe-3
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            cd e2e_project
+            timeout=300
+            elapsed=0
+            until python3 -c "
+            import h5py
+            with h5py.File('pages/FAKE_PE_TEST_EVENT/pesummary-subject/pesummary/samples/posterior_samples.h5', 'r') as f:
+                assert 'fake-pe-3' in f.keys()
+            " 2>/dev/null; do
+              if [ "$elapsed" -ge "$timeout" ]; then
+                echo "::error::Timed out waiting for the PESummary SubjectAnalysis refresh to pick up fake-pe-3"
+                exit 1
+              fi
+              sleep 10
+              elapsed=$((elapsed + 10))
+              asimov monitor || true
+            done
+
+      - name: Verify the refresh used --add_to_existing (incremental, not a full rebuild)
+        uses: etive-io/actions/run-asimov-command@v1
+        with:
+          script: |
+            cd e2e_project
+            if ! grep -q -- '--add_to_existing' working/FAKE_PE_TEST_EVENT/pesummary.sh; then
+              echo "::error::Expected the PESummary SubjectAnalysis refresh to use --add_to_existing (incremental); a full rebuild happened instead"
+              cat working/FAKE_PE_TEST_EVENT/pesummary.sh
+              exit 1
+            fi
+
+      - name: Upload combined summarypages site artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: summarypages-subject-site
+          path: e2e_project/pages/FAKE_PE_TEST_EVENT/pesummary-subject/pesummary
+          retention-days: 5
+
       - name: Archive artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -193,7 +342,38 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: summarypages-site
-          path: site
+          path: site/pesummary-post
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: summarypages-subject-site
+          path: site/pesummary-subject
+
+      - name: Add a landing page linking to both published sites
+        # Since summarypages-site and summarypages-subject-site now live
+        # side by side under their own subdirectories, there's no longer
+        # any content at the destination root itself -- visiting the bare
+        # preview URL (or the old pre-SubjectAnalysis `home.html` path)
+        # would just 404. Give the root both an index.html (served
+        # automatically for directory-style URLs) and a home.html alias
+        # (matching pesummary's own entry-point filename, in case that's
+        # what someone remembers/bookmarks) so it resolves to something
+        # useful either way.
+        run: |
+          cat > site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head><title>asimov-pesummary preview</title></head>
+          <body>
+          <h1>asimov-pesummary summarypages preview</h1>
+          <ul>
+            <li><a href="pesummary-post/home.html">pesummary-post (single-analysis)</a></li>
+            <li><a href="pesummary-subject/home.html">pesummary-subject (SubjectAnalysis combine + refresh)</a></li>
+          </ul>
+          </body>
+          </html>
+          EOF
+          cp site/index.html site/home.html
 
       - name: Compute publish destination
         id: dest

@@ -24,6 +24,8 @@ _stub_pipelines = MagicMock()
 _stub_pipelines.known_pipelines = {}
 sys.modules.setdefault("asimov.pipelines", _stub_pipelines)
 
+from asimov.analysis import SubjectAnalysis  # noqa: E402
+from asimov.pipeline import PipelineException  # noqa: E402
 from asimov_pesummary.pesummary import PESummary  # noqa: E402
 
 
@@ -100,6 +102,71 @@ def make_production(pesummary_meta=None, approximant="IMRPhenomXPHM",
     return production
 
 
+def make_dependency(name, approximant="IMRPhenomXPHM", min_freq=None,
+                     reference_frequency=20, samples=None, psds=None,
+                     calibration=None, category="C01_offline"):
+    """Return a MagicMock source analysis for a SubjectAnalysis to combine.
+
+    Mirrors what a real upstream production (e.g. a FakeCBCPipeline/bilby
+    production) looks like from PESummary's point of view: it has a name,
+    category, waveform meta, and a pipeline whose ``collect_assets()``
+    advertises its samples/PSDs/calibration.
+    """
+    dependency = MagicMock()
+    dependency.name = name
+    dependency.category = category
+    dependency.event.repository.directory = "/repo/GW150914"
+    dependency.event.repository.find_prods.return_value = [f"{category}/{name}.ini"]
+    dependency.meta = {
+        "waveform": {
+            "approximant": approximant,
+            "reference frequency": reference_frequency,
+            "minimum frequency": min_freq or {"H1": 20, "L1": 20},
+        },
+    }
+    dependency.pipeline.collect_assets.return_value = {
+        "samples": samples if samples is not None else f"/path/to/{name}.h5",
+        "psds": psds if psds is not None else {"H1": f"/path/{name}_H1.psd"},
+        "calibration": calibration if calibration is not None else {},
+    }
+    return dependency
+
+
+def make_subject_analysis(pesummary_meta=None, analyses=None,
+                           resolved_dependencies=None):
+    """Return a MagicMock SubjectAnalysis production combining several
+    dependency analyses (see ``make_dependency``).
+
+    Uses the ``__class__`` trick rather than ``MagicMock(spec=...)`` because
+    ``SubjectAnalysis`` sets most of its interesting attributes (``name``,
+    ``event``, ``analyses``, ``meta``) as plain instance attributes in
+    ``__init__`` rather than class-level descriptors, which a class-spec'd
+    mock wouldn't know about.
+    """
+    production = MagicMock()
+    production.__class__ = SubjectAnalysis
+    production.name = "CombinedPESummary"
+    production.category = "subject_analyses"
+    production.event.name = "GW150914"
+    production.event.work_dir = "/working/GW150914/CombinedPESummary"
+
+    base_pesummary = {
+        "accounting group": "ligo.dev.o4.cbc.pe.lalinference",
+        "multiprocess": 4,
+    }
+    if pesummary_meta is not None:
+        base_pesummary.update(pesummary_meta)
+    production.meta = {"postprocessing": {"pesummary": base_pesummary}}
+
+    production.analyses = (
+        analyses if analyses is not None
+        else [make_dependency("Bilby1"), make_dependency("Bilby2")]
+    )
+    production.resolved_dependencies = resolved_dependencies
+
+    return production
+
+
 # ---------------------------------------------------------------------------
 # TestPESummaryInit
 # ---------------------------------------------------------------------------
@@ -144,6 +211,14 @@ class TestPESummaryInit(unittest.TestCase):
         pipeline = PESummary(self.production)
         pipeline.build_dag(dryrun=True)
         pipeline.build_dag(dryrun=False)
+
+    def test_is_subject_analysis_false_for_regular_production(self):
+        pipeline = PESummary(self.production)
+        self.assertFalse(pipeline.is_subject_analysis)
+
+    def test_is_subject_analysis_true_for_subject_analysis(self):
+        pipeline = PESummary(make_subject_analysis())
+        self.assertTrue(pipeline.is_subject_analysis)
 
 
 # ---------------------------------------------------------------------------
@@ -397,6 +472,28 @@ class TestPESummarySubmitDagCommand(unittest.TestCase):
     def test_regenerate_flag_absent_when_not_in_meta(self):
         self.assertFalse(self._has("--regenerate"))
 
+    def test_regenerate_false_flag_absent_even_with_posteriors_list(self):
+        prod = make_production(pesummary_meta={
+            "regenerate": False,
+            "regenerate posteriors": ["redshift", "mass_1_source"],
+        })
+        self.assertFalse(self._has("--regenerate", prod))
+
+    def test_regenerate_true_without_posteriors_raises(self):
+        prod = make_production(pesummary_meta={"regenerate": True})
+        pipeline = PESummary(prod)
+        with self.assertRaises(PipelineException):
+            pipeline.submit_dag(dryrun=True)
+
+    def test_regenerate_true_with_empty_posteriors_raises(self):
+        prod = make_production(pesummary_meta={
+            "regenerate": True,
+            "regenerate posteriors": [],
+        })
+        pipeline = PESummary(prod)
+        with self.assertRaises(PipelineException):
+            pipeline.submit_dag(dryrun=True)
+
     # --- Optional: calculate precessing SNR ---
 
     def test_calculate_precessing_snr_flag_present(self):
@@ -585,6 +682,194 @@ class TestPESummaryHTCondorSubmit(unittest.TestCase):
         self.pipeline.submit_dag(dryrun=False)
         desc = self._submitted_job()
         self.assertIn("Prod0", desc["batch_name"])
+
+
+# ---------------------------------------------------------------------------
+# TestPESummarySubjectAnalysis
+#
+# Exercises the SubjectAnalysis (combine multiple productions) submission
+# path: a full combine on the first run, an incremental
+# `summarypages --add_to_existing` run that only adds newly-resolved
+# analyses to an already-published page, and a fallback to a full rebuild
+# if an analysis was removed from the resolved set (summarypages can't
+# retract a label from an existing page in place).
+# ---------------------------------------------------------------------------
+
+class TestPESummarySubjectAnalysis(unittest.TestCase):
+
+    def setUp(self):
+        self.mock_config = patch("asimov_pesummary.pesummary.config").start()
+        self.mock_config.get.side_effect = _config_get
+
+        self.mock_utils = patch("asimov_pesummary.pesummary.utils").start()
+
+        self.mock_exists = patch("asimov_pesummary.pesummary.os.path.exists").start()
+        self.mock_exists.return_value = False
+
+        self._open = mock_open()
+        patch("builtins.open", self._open).start()
+
+        self.addCleanup(patch.stopall)
+
+    def _parts(self, production):
+        """Run submit_dag(dryrun=True) once and return the written command,
+        split into tokens. ``submit_dag`` mutates
+        ``production.resolved_dependencies`` as a side effect, so (unlike
+        the single-analysis tests above) this must only be called once per
+        production -- reuse the returned list for every assertion in a
+        test rather than calling this again for the same production.
+        """
+        pipeline = PESummary(production)
+        pipeline.submit_dag(dryrun=True)
+        handle = self._open.return_value.__enter__.return_value
+        return handle.write.call_args[0][0].split()
+
+    @staticmethod
+    def _has(flag, parts):
+        return flag in parts
+
+    @staticmethod
+    def _values_after(flag, count, parts):
+        """Return the `count` tokens immediately following `flag`."""
+        i = parts.index(flag)
+        return parts[i + 1:i + 1 + count]
+
+    # --- Validation ---
+
+    def test_no_source_analyses_raises(self):
+        production = make_subject_analysis(analyses=[])
+        pipeline = PESummary(production)
+        with self.assertRaises(PipelineException):
+            pipeline.submit_dag(dryrun=True)
+
+    def test_missing_waveform_config_raises(self):
+        bad = make_dependency("BadRun")
+        del bad.meta["waveform"]["reference frequency"]
+        production = make_subject_analysis(analyses=[bad])
+        pipeline = PESummary(production)
+        with self.assertRaises(PipelineException) as ctx:
+            pipeline.submit_dag(dryrun=True)
+        self.assertIn("BadRun", str(ctx.exception))
+
+    def test_dependency_with_no_samples_is_skipped(self):
+        no_samples = make_dependency("Empty")
+        no_samples.pipeline.collect_assets.return_value["samples"] = None
+        production = make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), no_samples]
+        )
+        labels = self._values_after("--labels", 1, self._parts(production))
+        self.assertEqual(labels, ["Bilby1"])
+
+    def test_skipped_dependency_not_in_resolved_dependencies(self):
+        # A dependency skipped for lack of samples must stay unresolved:
+        # otherwise it would never look "new" on a later refresh once its
+        # samples do appear, and detect_completion_processing() would
+        # expect an HDF5 group for it that was never actually written.
+        no_samples = make_dependency("Empty")
+        no_samples.pipeline.collect_assets.return_value["samples"] = None
+        production = make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), no_samples]
+        )
+        self._parts(production)
+        self.assertEqual(production.resolved_dependencies, ["Bilby1"])
+
+    # --- Full combine (first run) ---
+
+    def test_full_combine_includes_all_labels(self):
+        parts = self._parts(make_subject_analysis())
+        labels = self._values_after("--labels", 2, parts)
+        self.assertEqual(set(labels), {"Bilby1", "Bilby2"})
+
+    def test_full_combine_does_not_use_add_to_existing(self):
+        parts = self._parts(make_subject_analysis())
+        self.assertFalse(self._has("--add_to_existing", parts))
+        self.assertFalse(self._has("--existing_webdir", parts))
+
+    def test_full_combine_includes_all_samples(self):
+        parts = self._parts(make_subject_analysis())
+        samples = self._values_after("--samples", 2, parts)
+        self.assertEqual(set(samples), {"/path/to/Bilby1.h5", "/path/to/Bilby2.h5"})
+
+    def test_full_combine_includes_all_configs(self):
+        parts = self._parts(make_subject_analysis())
+        configs = self._values_after("--config", 2, parts)
+        self.assertTrue(all(c.endswith(".ini") for c in configs))
+
+    def test_full_combine_sets_resolved_dependencies(self):
+        production = make_subject_analysis()
+        self._parts(production)
+        self.assertEqual(production.resolved_dependencies, ["Bilby1", "Bilby2"])
+
+    # --- Incremental refresh (add_to_existing) ---
+
+    def test_incremental_refresh_only_includes_new_label(self):
+        self.mock_exists.return_value = True  # home.html already exists
+        parts = self._parts(make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), make_dependency("Bilby2"),
+                      make_dependency("Bilby3")],
+            resolved_dependencies=["Bilby1", "Bilby2"],
+        ))
+        labels = self._values_after("--labels", 1, parts)
+        self.assertEqual(labels, ["Bilby3"])
+
+    def test_incremental_refresh_uses_add_to_existing(self):
+        self.mock_exists.return_value = True
+        parts = self._parts(make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), make_dependency("Bilby2"),
+                      make_dependency("Bilby3")],
+            resolved_dependencies=["Bilby1", "Bilby2"],
+        ))
+        self.assertTrue(self._has("--add_to_existing", parts))
+        self.assertTrue(self._has("--existing_webdir", parts))
+
+    def test_incremental_refresh_existing_webdir_matches_webdir(self):
+        self.mock_exists.return_value = True
+        parts = self._parts(make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), make_dependency("Bilby2"),
+                      make_dependency("Bilby3")],
+            resolved_dependencies=["Bilby1", "Bilby2"],
+        ))
+        webdir = parts[parts.index("--webdir") + 1]
+        existing = parts[parts.index("--existing_webdir") + 1]
+        self.assertEqual(webdir, existing)
+
+    def test_incremental_refresh_sets_full_resolved_dependencies(self):
+        self.mock_exists.return_value = True
+        production = make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), make_dependency("Bilby2"),
+                      make_dependency("Bilby3")],
+            resolved_dependencies=["Bilby1", "Bilby2"],
+        )
+        self._parts(production)
+        self.assertEqual(
+            production.resolved_dependencies, ["Bilby1", "Bilby2", "Bilby3"]
+        )
+
+    def test_missing_existing_page_falls_back_to_full_rebuild(self):
+        # resolved_dependencies is set (it has run before), but the
+        # published page is missing on disk -- must not attempt
+        # --add_to_existing against a directory that doesn't have one.
+        self.mock_exists.return_value = False
+        parts = self._parts(make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), make_dependency("Bilby2"),
+                      make_dependency("Bilby3")],
+            resolved_dependencies=["Bilby1", "Bilby2"],
+        ))
+        self.assertFalse(self._has("--add_to_existing", parts))
+        labels = self._values_after("--labels", 3, parts)
+        self.assertEqual(set(labels), {"Bilby1", "Bilby2", "Bilby3"})
+
+    # --- Removal fallback ---
+
+    def test_removed_analysis_falls_back_to_full_rebuild(self):
+        self.mock_exists.return_value = True
+        parts = self._parts(make_subject_analysis(
+            analyses=[make_dependency("Bilby1")],
+            resolved_dependencies=["Bilby1", "Bilby2"],  # Bilby2 no longer present
+        ))
+        self.assertFalse(self._has("--add_to_existing", parts))
+        labels = self._values_after("--labels", 1, parts)
+        self.assertEqual(labels, ["Bilby1"])
 
 
 if __name__ == "__main__":
