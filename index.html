@@ -248,6 +248,7 @@
 <li><a class="reference internal" href="#">asimov-pesummary</a><ul>
 <li><a class="reference internal" href="#installation">Installation</a></li>
 <li><a class="reference internal" href="#configuration">Configuration</a></li>
+<li><a class="reference internal" href="#subject-analyses">Subject analyses</a></li>
 </ul>
 </li>
 </ul>
@@ -311,6 +312,49 @@ Asimov ledger.  All keys are optional unless noted.</p>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mass_1_source</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mass_2_source</span>
 </pre></div>
+</div>
+</section>
+<section id="subject-analyses">
+<h2>Subject analyses<a class="headerlink" href="#subject-analyses" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">PESummary</span></code> can also be attached to an Asimov <code class="docutils literal notranslate"><span class="pre">SubjectAnalysis</span></code> instead
+of a single production, in which case it combines several productions’
+results into one set of summary pages rather than post-processing just one.
+This uses the same <code class="docutils literal notranslate"><span class="pre">postprocessing.pesummary</span></code> configuration described
+above (inherited from the event/project the same way it is for a regular
+production), plus the <code class="docutils literal notranslate"><span class="pre">analyses</span></code>/<code class="docutils literal notranslate"><span class="pre">refreshable</span></code> keys, which are generic
+Asimov <code class="docutils literal notranslate"><span class="pre">SubjectAnalysis</span></code> behaviour rather than anything specific to this
+plugin:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">analysis</span>
+<span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CombinedPESummary</span>
+<span class="nt">pipeline</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pesummary</span>
+<span class="nt">analyses</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">pipeline</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bilby</span><span class="w">   </span><span class="c1"># combine every bilby production on this event</span>
+<span class="nt">refreshable</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">status</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ready</span>
+</pre></div>
+</div>
+<p>Marking the analysis <code class="docutils literal notranslate"><span class="pre">refreshable:</span> <span class="pre">true</span></code> means Asimov’s own monitor loop
+(<code class="docutils literal notranslate"><span class="pre">asimov</span> <span class="pre">monitor</span></code>) automatically resubmits it whenever the set of
+resolved source analyses changes — for example because a new production
+finished, or because a review decision changed which productions match the
+<code class="docutils literal notranslate"><span class="pre">analyses</span></code> selector. See Asimov’s own documentation for the
+<code class="docutils literal notranslate"><span class="pre">analyses</span></code>/<code class="docutils literal notranslate"><span class="pre">refreshable</span></code> selector syntax and staleness detection; this
+plugin only implements what happens when such a resubmission occurs.</p>
+<p>The <strong>first</strong> time a <code class="docutils literal notranslate"><span class="pre">SubjectAnalysis</span></code> PESummary production runs (or if a
+previously-included analysis has dropped out of the resolved set, for
+example after a review decision), it submits a single <code class="docutils literal notranslate"><span class="pre">summarypages</span></code> run
+combining every currently resolved source analysis.</p>
+<p>On a <strong>later refresh that only adds</strong> newly-resolved analyses to an
+already-published page, only the new analyses are submitted, using
+<code class="docutils literal notranslate"><span class="pre">summarypages</span></code>’s own <code class="docutils literal notranslate"><span class="pre">--add_to_existing</span></code>/<code class="docutils literal notranslate"><span class="pre">--existing_webdir</span></code> flags to
+append them to the existing pages in place, rather than reprocessing every
+source analysis again from scratch.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">summarypages</span></code> has no way to retract a label from an already-published
+page. If a previously-included analysis is later <em>removed</em> from the
+resolved set, the next refresh falls back to a full rebuild (recombining
+every currently resolved analysis) instead of an incremental update.</p>
 </div>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Reference</span></p>

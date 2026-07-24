@@ -248,6 +248,7 @@
 <li><a class="reference internal" href="#">API Reference</a><ul>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary"><code class="docutils literal notranslate"><span class="pre">PESummary</span></code></a><ul>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.results"><code class="docutils literal notranslate"><span class="pre">PESummary.results()</span></code></a></li>
+<li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.collect_assets"><code class="docutils literal notranslate"><span class="pre">PESummary.collect_assets()</span></code></a></li>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.build_dag"><code class="docutils literal notranslate"><span class="pre">PESummary.build_dag()</span></code></a></li>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.submit_dag"><code class="docutils literal notranslate"><span class="pre">PESummary.submit_dag()</span></code></a></li>
 </ul>
@@ -275,6 +276,18 @@
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">asimov_pesummary.pesummary.</span></span><span class="sig-name descname"><span class="pre">PESummary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">production</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">category</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/asimov_pesummary/pesummary.html#PESummary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asimov_pesummary.pesummary.PESummary" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">Pipeline</span></code></p>
 <p>A postprocessing pipeline add-in using PESummary.</p>
+<p>A production using this pipeline may be either a regular analysis
+(post-processing a single upstream production’s samples) or an asimov
+<code class="docutils literal notranslate"><span class="pre">SubjectAnalysis</span></code> (combining several productions’ samples into one set
+of summary pages). <code class="docutils literal notranslate"><span class="pre">SubjectAnalysis</span></code> productions marked <code class="docutils literal notranslate"><span class="pre">refreshable:</span>
+<span class="pre">true</span></code> are automatically resubmitted by asimov’s monitor loop whenever
+their resolved source analyses change; when that happens here, only the
+newly-added analyses are passed to <code class="docutils literal notranslate"><span class="pre">summarypages</span></code>, using its own
+<code class="docutils literal notranslate"><span class="pre">--add_to_existing</span></code>/<code class="docutils literal notranslate"><span class="pre">--existing_webdir</span></code> flags to append them to the
+already-published pages rather than recombining everything from
+scratch. If an analysis is ever removed from the combined set,
+<code class="docutils literal notranslate"><span class="pre">summarypages</span></code> cannot retract a label from an existing page in place,
+so a full rebuild is triggered instead.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="asimov_pesummary.pesummary.PESummary.results">
 <span class="sig-name descname"><span class="pre">results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/asimov_pesummary/pesummary.html#PESummary.results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asimov_pesummary.pesummary.PESummary.results" title="Link to this definition">¶</a></dt>
@@ -296,6 +309,13 @@ makes sense for the output, for example skymaps.</p>
 </dl>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="asimov_pesummary.pesummary.PESummary.collect_assets">
+<span class="sig-name descname"><span class="pre">collect_assets</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/asimov_pesummary/pesummary.html#PESummary.collect_assets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asimov_pesummary.pesummary.PESummary.collect_assets" title="Link to this definition">¶</a></dt>
+<dd><p>Advertise this pipeline’s combined metafile, in case a further
+downstream step ever needs to consume it.</p>
 </dd></dl>
 
 <dl class="py method">
