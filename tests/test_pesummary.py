@@ -472,6 +472,28 @@ class TestPESummarySubmitDagCommand(unittest.TestCase):
     def test_regenerate_flag_absent_when_not_in_meta(self):
         self.assertFalse(self._has("--regenerate"))
 
+    def test_regenerate_false_flag_absent_even_with_posteriors_list(self):
+        prod = make_production(pesummary_meta={
+            "regenerate": False,
+            "regenerate posteriors": ["redshift", "mass_1_source"],
+        })
+        self.assertFalse(self._has("--regenerate", prod))
+
+    def test_regenerate_true_without_posteriors_raises(self):
+        prod = make_production(pesummary_meta={"regenerate": True})
+        pipeline = PESummary(prod)
+        with self.assertRaises(PipelineException):
+            pipeline.submit_dag(dryrun=True)
+
+    def test_regenerate_true_with_empty_posteriors_raises(self):
+        prod = make_production(pesummary_meta={
+            "regenerate": True,
+            "regenerate posteriors": [],
+        })
+        pipeline = PESummary(prod)
+        with self.assertRaises(PipelineException):
+            pipeline.submit_dag(dryrun=True)
+
     # --- Optional: calculate precessing SNR ---
 
     def test_calculate_precessing_snr_flag_present(self):
@@ -737,6 +759,19 @@ class TestPESummarySubjectAnalysis(unittest.TestCase):
         )
         labels = self._values_after("--labels", 1, self._parts(production))
         self.assertEqual(labels, ["Bilby1"])
+
+    def test_skipped_dependency_not_in_resolved_dependencies(self):
+        # A dependency skipped for lack of samples must stay unresolved:
+        # otherwise it would never look "new" on a later refresh once its
+        # samples do appear, and detect_completion_processing() would
+        # expect an HDF5 group for it that was never actually written.
+        no_samples = make_dependency("Empty")
+        no_samples.pipeline.collect_assets.return_value["samples"] = None
+        production = make_subject_analysis(
+            analyses=[make_dependency("Bilby1"), no_samples]
+        )
+        self._parts(production)
+        self.assertEqual(production.resolved_dependencies, ["Bilby1"])
 
     # --- Full combine (first run) ---
 

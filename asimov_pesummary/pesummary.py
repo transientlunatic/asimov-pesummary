@@ -130,8 +130,14 @@ class PESummary(Pipeline):
         if "multiprocess" in self.meta:
             command += ["--multi_process", str(self.meta["multiprocess"])]
 
-        if "regenerate" in self.meta:
-            command += ["--regenerate", " ".join(self.meta["regenerate posteriors"])]
+        if self.meta.get("regenerate"):
+            posteriors = self.meta.get("regenerate posteriors")
+            if not posteriors:
+                raise PipelineException(
+                    "postprocessing.pesummary.regenerate is set, but "
+                    "'regenerate posteriors' is missing or empty."
+                )
+            command += ["--regenerate", " ".join(posteriors)]
 
         if "calculate" in self.meta:
             if "precessing snr" in self.meta["calculate"]:
@@ -380,7 +386,15 @@ class PESummary(Pipeline):
         # treating "submitted" as "resolved"), so a later refresh's
         # staleness check compares against what this run is about to
         # process, and detect_completion_processing() knows which HDF5
-        # groups to expect once it finishes.
-        self.production.resolved_dependencies = current_names
+        # groups to expect once it finishes. Use what was actually
+        # submitted (previously-resolved names plus this round's labels),
+        # not current_names -- an analysis skipped above (no samples yet)
+        # must stay unresolved, or it would never be considered "new" on a
+        # later refresh once its samples do appear, and
+        # detect_completion_processing() would expect an HDF5 group for it
+        # that will never exist.
+        self.production.resolved_dependencies = sorted(
+            set(previous_names or []) | set(labels)
+        )
 
         return self._submit(command, dryrun)
