@@ -212,6 +212,34 @@ class TestPESummaryInit(unittest.TestCase):
         pipeline.build_dag(dryrun=True)
         pipeline.build_dag(dryrun=False)
 
+    def test_config_template_is_an_existing_file(self):
+        """asimov's `manage build` CLI unconditionally calls
+        `production.make_config()`, which checks `hasattr(pipeline,
+        "config_template")` and, if absent, falls back to looking for a
+        `pesummary.ini` template inside asimov core's own package -- which
+        doesn't exist there any more, since PESummary moved out of core into
+        this plugin. Without a `config_template` of our own, that fallback
+        raises `jinja2.exceptions.TemplateNotFound`."""
+        pipeline = PESummary(self.production)
+        self.assertTrue(hasattr(pipeline, "config_template"))
+        self.assertTrue(os.path.isfile(pipeline.config_template))
+
+    def test_config_template_renders_via_liquid(self):
+        """Reproduces the exact rendering asimov's `Analysis.make_config()`
+        performs, so a change to the template that breaks rendering (rather
+        than just removing the file) is caught too."""
+        from liquid.liquid import Liquid
+
+        pipeline = PESummary(self.production)
+        liq = Liquid(pipeline.config_template)
+        rendered = liq.render(
+            production=self.production,
+            analysis=self.production,
+            pipeline=pipeline,
+            config=_CONFIG,
+        )
+        self.assertIn(self.production.name, rendered)
+
     def test_is_subject_analysis_false_for_regular_production(self):
         pipeline = PESummary(self.production)
         self.assertFalse(pipeline.is_subject_analysis)
