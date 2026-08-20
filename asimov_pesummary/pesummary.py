@@ -227,6 +227,24 @@ class PESummary(Pipeline):
             return self._submit_subject_analysis(dryrun=dryrun)
         return self._submit_single_analysis(dryrun=dryrun)
 
+    @staticmethod
+    def _single_sample_path(samples):
+        """
+        Normalise a ``collect_assets()["samples"]`` value to a single path.
+
+        Different upstream pipelines return this differently: some (e.g.
+        bilby_pipe's ``Bilby.collect_assets``) return a list, built from a
+        glob lookup over the run directory; others already return a single
+        string. ``summarypages --samples`` takes one path per analysis
+        being submitted here, so pick the first entry when given a
+        list/tuple rather than passing the whole sequence through as a
+        single command argument -- which fails downstream (`" ".join`
+        raises ``TypeError``) once the command is assembled into a string.
+        """
+        if isinstance(samples, (list, tuple)):
+            return samples[0] if samples else None
+        return samples
+
     def _submit_single_analysis(self, dryrun=False):
         configfile = self.production.event.repository.find_prods(
             self.production.name, self.category
@@ -261,8 +279,15 @@ class PESummary(Pipeline):
             ),
         ]
         # Samples
-        command += ["--samples"]
-        command += [self.production._previous_assets().get("samples", {})]
+        sample_path = self._single_sample_path(
+            self.production._previous_assets().get("samples")
+        )
+        if not sample_path:
+            raise PipelineException(
+                f"PESummary production {self.production.name} has no samples "
+                "available from its upstream analysis."
+            )
+        command += ["--samples", sample_path]
 
         # PSDs
         psds = {
@@ -332,7 +357,7 @@ class PESummary(Pipeline):
 
         for analysis in analyses_to_submit:
             assets = analysis.pipeline.collect_assets()
-            samples = assets.get("samples")
+            samples = self._single_sample_path(assets.get("samples"))
             if not samples:
                 self.logger.warning(
                     f"No samples available for {analysis.name}; skipping"
