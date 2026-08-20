@@ -387,6 +387,23 @@ class TestPESummarySubmitDagCommand(unittest.TestCase):
     def test_samples_value(self):
         self.assertEqual(self._value("--samples"), "/path/to/posterior_samples.hdf5")
 
+    def test_samples_list_from_upstream_uses_first_entry(self):
+        """Not every upstream pipeline returns a scalar path from
+        `collect_assets()["samples"]` -- e.g. bilby_pipe's `Bilby` builds it
+        from `glob.glob(...)`, which returns a list even when there's only
+        one match. Passing that list straight through to the command used to
+        blow up `" ".join(command)` with a `TypeError` once the command was
+        assembled into the submission script."""
+        production = make_production(
+            assets={"samples": ["/path/to/result_0.hdf5", "/path/to/result_1.hdf5"]}
+        )
+        self.assertEqual(self._value("--samples", production), "/path/to/result_0.hdf5")
+
+    def test_no_samples_raises_pipeline_exception(self):
+        production = make_production(assets={"samples": None})
+        with self.assertRaises(PipelineException):
+            self._run(production)
+
     # --- Multiprocess ---
 
     def test_multiprocess_flag_present(self):
@@ -817,6 +834,19 @@ class TestPESummarySubjectAnalysis(unittest.TestCase):
         parts = self._parts(make_subject_analysis())
         samples = self._values_after("--samples", 2, parts)
         self.assertEqual(set(samples), {"/path/to/Bilby1.h5", "/path/to/Bilby2.h5"})
+
+    def test_full_combine_handles_list_valued_samples(self):
+        """Mirrors test_samples_list_from_upstream_uses_first_entry, but for
+        the SubjectAnalysis combine path: one dependency returns a list from
+        `collect_assets()["samples"]` (e.g. a real bilby_pipe production),
+        which must be flattened to a single path per analysis, not passed
+        through as a nested list."""
+        parts = self._parts(make_subject_analysis(analyses=[
+            make_dependency("Bilby1", samples=["/path/to/Bilby1_0.h5", "/path/to/Bilby1_1.h5"]),
+            make_dependency("Bilby2"),
+        ]))
+        samples = self._values_after("--samples", 2, parts)
+        self.assertEqual(set(samples), {"/path/to/Bilby1_0.h5", "/path/to/Bilby2.h5"})
 
     def test_full_combine_includes_all_configs(self):
         parts = self._parts(make_subject_analysis())
