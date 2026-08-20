@@ -1,5 +1,6 @@
 """Defines the interface with generic analysis pipelines."""
 
+import importlib.resources
 import os
 
 from asimov import utils  # NoQA
@@ -59,6 +60,32 @@ class PESummary(Pipeline):
         # super().__init__() here since this class sets up its attributes
         # differently (e.g. category fallback, plain module logger).
         self._scheduler = None
+
+    @property
+    def config_template(self):
+        """
+        A minimal bundled config template.
+
+        Asimov's generic ``manage build`` step calls ``production.make_config()``
+        to render a production's own ``.ini`` from a template, whenever one
+        doesn't already exist in the event repository (see
+        ``repository.find_prods()``). Without this, asimov falls back to
+        looking for a ``pesummary.ini`` template inside its own package,
+        which doesn't exist there any more -- PESummary moved out of asimov
+        core into this plugin -- so ``make_config()`` raises
+        ``TemplateNotFound`` (see ``FakeCBCPipeline.config_template`` in
+        ``testing.py``, which hit and documented this same gap first).
+        The rendered file is what ``summarypages --config`` receives
+        (see ``_submit_single_analysis``/``_submit_subject_analysis``);
+        PESummary's own actual behaviour is controlled by the explicit CLI
+        flags built from ``self.meta`` elsewhere in this class, so this only
+        needs to be a valid, renderable ini for provenance/display purposes.
+        """
+        return str(
+            importlib.resources.files("asimov_pesummary").joinpath(
+                "configs/pesummary.ini"
+            )
+        )
 
     def _webdir(self):
         return os.path.join(
