@@ -247,6 +247,7 @@
     <ul>
 <li><a class="reference internal" href="#">API Reference</a><ul>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary"><code class="docutils literal notranslate"><span class="pre">PESummary</span></code></a><ul>
+<li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.config_template"><code class="docutils literal notranslate"><span class="pre">PESummary.config_template</span></code></a></li>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.results"><code class="docutils literal notranslate"><span class="pre">PESummary.results()</span></code></a></li>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.collect_assets"><code class="docutils literal notranslate"><span class="pre">PESummary.collect_assets()</span></code></a></li>
 <li><a class="reference internal" href="#asimov_pesummary.pesummary.PESummary.build_dag"><code class="docutils literal notranslate"><span class="pre">PESummary.build_dag()</span></code></a></li>
@@ -288,6 +289,26 @@ already-published pages rather than recombining everything from
 scratch. If an analysis is ever removed from the combined set,
 <code class="docutils literal notranslate"><span class="pre">summarypages</span></code> cannot retract a label from an existing page in place,
 so a full rebuild is triggered instead.</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="asimov_pesummary.pesummary.PESummary.config_template">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">config_template</span></span><a class="headerlink" href="#asimov_pesummary.pesummary.PESummary.config_template" title="Link to this definition">¶</a></dt>
+<dd><p>A minimal bundled config template.</p>
+<p>Asimov’s generic <code class="docutils literal notranslate"><span class="pre">manage</span> <span class="pre">build</span></code> step calls <code class="docutils literal notranslate"><span class="pre">production.make_config()</span></code>
+to render a production’s own <code class="docutils literal notranslate"><span class="pre">.ini</span></code> from a template, whenever one
+doesn’t already exist in the event repository (see
+<code class="docutils literal notranslate"><span class="pre">repository.find_prods()</span></code>). Without this, asimov falls back to
+looking for a <code class="docutils literal notranslate"><span class="pre">pesummary.ini</span></code> template inside its own package,
+which doesn’t exist there any more – PESummary moved out of asimov
+core into this plugin – so <code class="docutils literal notranslate"><span class="pre">make_config()</span></code> raises
+<code class="docutils literal notranslate"><span class="pre">TemplateNotFound</span></code> (see <code class="docutils literal notranslate"><span class="pre">FakeCBCPipeline.config_template</span></code> in
+<code class="docutils literal notranslate"><span class="pre">testing.py</span></code>, which hit and documented this same gap first).
+The rendered file is what <code class="docutils literal notranslate"><span class="pre">summarypages</span> <span class="pre">--config</span></code> receives
+(see <code class="docutils literal notranslate"><span class="pre">_submit_single_analysis</span></code>/<code class="docutils literal notranslate"><span class="pre">_submit_subject_analysis</span></code>);
+PESummary’s own actual behaviour is controlled by the explicit CLI
+flags built from <code class="docutils literal notranslate"><span class="pre">self.meta</span></code> elsewhere in this class, so this only
+needs to be a valid, renderable ini for provenance/display purposes.</p>
+</dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="asimov_pesummary.pesummary.PESummary.results">
 <span class="sig-name descname"><span class="pre">results</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/asimov_pesummary/pesummary.html#PESummary.results"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#asimov_pesummary.pesummary.PESummary.results" title="Link to this definition">¶</a></dt>
@@ -296,8 +317,8 @@ so a full rebuild is triggered instead.</p>
 of each results file as the key.  These may be nested if it
 makes sense for the output, for example skymaps.</p>
 <p>For example:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;metafile&#39;</span><span class="p">:</span> <span class="s1">&#39;/home/asimov/working/samples/metafile.hd5&#39;</span><span class="p">,</span>
- <span class="s1">&#39;skymaps&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;H1&#39;</span><span class="p">:</span> <span class="s1">&#39;/another/file/path&#39;</span><span class="p">,</span> <span class="o">...</span><span class="p">}</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">'metafile'</span><span class="p">:</span> <span class="s1">'/home/asimov/working/samples/metafile.hd5'</span><span class="p">,</span>
+ <span class="s1">'skymaps'</span><span class="p">:</span> <span class="p">{</span><span class="s1">'H1'</span><span class="p">:</span> <span class="s1">'/another/file/path'</span><span class="p">,</span> <span class="o">...</span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>

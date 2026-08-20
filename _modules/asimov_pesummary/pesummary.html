@@ -259,8 +259,9 @@
       
       
   <h1>Source code for asimov_pesummary.pesummary</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Defines the interface with generic analysis pipelines.&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""Defines the interface with generic analysis pipelines."""</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib.resources</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">asimov</span><span class="w"> </span><span class="kn">import</span> <span class="n">utils</span>  <span class="c1"># NoQA</span>
@@ -275,14 +276,14 @@
 <div class="viewcode-block" id="PESummary">
 <a class="viewcode-back" href="../../api.html#asimov_pesummary.pesummary.PESummary">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">PESummary</span><span class="p">(</span><span class="n">Pipeline</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    A postprocessing pipeline add-in using PESummary.</span>
 
 <span class="sd">    A production using this pipeline may be either a regular analysis</span>
-<span class="sd">    (post-processing a single upstream production&#39;s samples) or an asimov</span>
-<span class="sd">    ``SubjectAnalysis`` (combining several productions&#39; samples into one set</span>
+<span class="sd">    (post-processing a single upstream production's samples) or an asimov</span>
+<span class="sd">    ``SubjectAnalysis`` (combining several productions' samples into one set</span>
 <span class="sd">    of summary pages). ``SubjectAnalysis`` productions marked ``refreshable:</span>
-<span class="sd">    true`` are automatically resubmitted by asimov&#39;s monitor loop whenever</span>
+<span class="sd">    true`` are automatically resubmitted by asimov's monitor loop whenever</span>
 <span class="sd">    their resolved source analyses change; when that happens here, only the</span>
 <span class="sd">    newly-added analyses are passed to ``summarypages``, using its own</span>
 <span class="sd">    ``--add_to_existing``/``--existing_webdir`` flags to append them to the</span>
@@ -290,23 +291,23 @@
 <span class="sd">    scratch. If an analysis is ever removed from the combined set,</span>
 <span class="sd">    ``summarypages`` cannot retract a label from an existing page in place,</span>
 <span class="sd">    so a full rebuild is triggered instead.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">executable</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-        <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;pipelines&quot;</span><span class="p">,</span> <span class="s2">&quot;environment&quot;</span><span class="p">),</span> <span class="s2">&quot;bin&quot;</span><span class="p">,</span> <span class="s2">&quot;summarypages&quot;</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"pipelines"</span><span class="p">,</span> <span class="s2">"environment"</span><span class="p">),</span> <span class="s2">"bin"</span><span class="p">,</span> <span class="s2">"summarypages"</span>
     <span class="p">)</span>
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;PESummary&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">"PESummary"</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">production</span><span class="p">,</span> <span class="n">category</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-        <span class="c1"># Imported here rather than at module level: asimov&#39;s own</span>
+        <span class="c1"># Imported here rather than at module level: asimov's own</span>
         <span class="c1"># asimov/analysis.py imports asimov/pipelines/__init__.py (to build</span>
         <span class="c1"># known_pipelines) before it finishes defining SubjectAnalysis, and</span>
         <span class="c1"># pipelines/__init__.py loads every registered third-party pipeline</span>
         <span class="c1"># plugin -- including this one -- as part of that same import. A</span>
         <span class="c1"># module-level `from asimov.analysis import SubjectAnalysis` here</span>
         <span class="c1"># would hit asimov.analysis mid-initialisation and raise ImportError,</span>
-        <span class="c1"># which asimov&#39;s plugin loader swallows silently, dropping this</span>
-        <span class="c1"># pipeline (and this package&#39;s other entry points) from</span>
+        <span class="c1"># which asimov's plugin loader swallows silently, dropping this</span>
+        <span class="c1"># pipeline (and this package's other entry points) from</span>
         <span class="c1"># known_pipelines with no visible error.</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">asimov.analysis</span><span class="w"> </span><span class="kn">import</span> <span class="n">SubjectAnalysis</span>
 
@@ -316,26 +317,52 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">category</span> <span class="o">=</span> <span class="n">category</span> <span class="k">if</span> <span class="n">category</span> <span class="k">else</span> <span class="n">production</span><span class="o">.</span><span class="n">category</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;postprocessing&quot;</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"postprocessing"</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()]</span>
 
         <span class="c1"># Required by the base Pipeline.scheduler property; not calling</span>
         <span class="c1"># super().__init__() here since this class sets up its attributes</span>
         <span class="c1"># differently (e.g. category fallback, plain module logger).</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_scheduler</span> <span class="o">=</span> <span class="kc">None</span>
 
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">config_template</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        A minimal bundled config template.</span>
+
+<span class="sd">        Asimov's generic ``manage build`` step calls ``production.make_config()``</span>
+<span class="sd">        to render a production's own ``.ini`` from a template, whenever one</span>
+<span class="sd">        doesn't already exist in the event repository (see</span>
+<span class="sd">        ``repository.find_prods()``). Without this, asimov falls back to</span>
+<span class="sd">        looking for a ``pesummary.ini`` template inside its own package,</span>
+<span class="sd">        which doesn't exist there any more -- PESummary moved out of asimov</span>
+<span class="sd">        core into this plugin -- so ``make_config()`` raises</span>
+<span class="sd">        ``TemplateNotFound`` (see ``FakeCBCPipeline.config_template`` in</span>
+<span class="sd">        ``testing.py``, which hit and documented this same gap first).</span>
+<span class="sd">        The rendered file is what ``summarypages --config`` receives</span>
+<span class="sd">        (see ``_submit_single_analysis``/``_submit_subject_analysis``);</span>
+<span class="sd">        PESummary's own actual behaviour is controlled by the explicit CLI</span>
+<span class="sd">        flags built from ``self.meta`` elsewhere in this class, so this only</span>
+<span class="sd">        needs to be a valid, renderable ini for provenance/display purposes.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span>
+            <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="s2">"asimov_pesummary"</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+                <span class="s2">"configs/pesummary.ini"</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_webdir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-            <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;project&quot;</span><span class="p">,</span> <span class="s2">&quot;root&quot;</span><span class="p">),</span>
-            <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;general&quot;</span><span class="p">,</span> <span class="s2">&quot;webroot&quot;</span><span class="p">),</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"project"</span><span class="p">,</span> <span class="s2">"root"</span><span class="p">),</span>
+            <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"general"</span><span class="p">,</span> <span class="s2">"webroot"</span><span class="p">),</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-            <span class="s2">&quot;pesummary&quot;</span><span class="p">,</span>
+            <span class="s2">"pesummary"</span><span class="p">,</span>
         <span class="p">)</span>
 
 <div class="viewcode-block" id="PESummary.results">
 <a class="viewcode-back" href="../../api.html#asimov_pesummary.pesummary.PESummary.results">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">results</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Fetch the results file from this post-processing step.</span>
 
 <span class="sd">        A dictionary of results will be returned with the description</span>
@@ -344,17 +371,17 @@
 
 <span class="sd">        For example::</span>
 
-<span class="sd">            {&#39;metafile&#39;: &#39;/home/asimov/working/samples/metafile.hd5&#39;,</span>
-<span class="sd">             &#39;skymaps&#39;: {&#39;H1&#39;: &#39;/another/file/path&#39;, ...}</span>
+<span class="sd">            {'metafile': '/home/asimov/working/samples/metafile.hd5',</span>
+<span class="sd">             'skymaps': {'H1': '/another/file/path', ...}</span>
 <span class="sd">            }</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        dict</span>
 <span class="sd">           A dictionary of the results.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_webdir</span><span class="p">()</span>
-        <span class="n">metafile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="s2">&quot;samples&quot;</span><span class="p">,</span> <span class="s2">&quot;posterior_samples.h5&quot;</span><span class="p">)</span>
+        <span class="n">metafile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="s2">"samples"</span><span class="p">,</span> <span class="s2">"posterior_samples.h5"</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="nb">dict</span><span class="p">(</span><span class="n">metafile</span><span class="o">=</span><span class="n">metafile</span><span class="p">)</span></div>
 
@@ -362,98 +389,98 @@
 <div class="viewcode-block" id="PESummary.collect_assets">
 <a class="viewcode-back" href="../../api.html#asimov_pesummary.pesummary.PESummary.collect_assets">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">collect_assets</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Advertise this pipeline&#39;s combined metafile, in case a further</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Advertise this pipeline's combined metafile, in case a further</span>
 <span class="sd">        downstream step ever needs to consume it.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;samples&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">()[</span><span class="s2">&quot;metafile&quot;</span><span class="p">]}</span></div>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"samples"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">()[</span><span class="s2">"metafile"</span><span class="p">]}</span></div>
 
 
 <div class="viewcode-block" id="PESummary.build_dag">
 <a class="viewcode-back" href="../../api.html#asimov_pesummary.pesummary.PESummary.build_dag">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_dag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">user</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        No-op: PESummary has no separate build step. All of the work</span>
-<span class="sd">        happens in ``submit_dag``, but asimov&#39;s generic ``manage build</span>
+<span class="sd">        happens in ``submit_dag``, but asimov's generic ``manage build</span>
 <span class="sd">        submit`` CLI unconditionally calls ``build_dag`` on every pipeline</span>
 <span class="sd">        before ``submit_dag``, so this must exist.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">pass</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_append_shared_options</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Append the ``postprocessing.pesummary`` meta-driven flags shared by</span>
 <span class="sd">        both single-analysis and subject-analysis submissions.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="s2">&quot;cosmology&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--cosmology&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;cosmology&quot;</span><span class="p">]]</span>
-        <span class="k">if</span> <span class="s2">&quot;redshift&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--redshift_method&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;redshift&quot;</span><span class="p">]]</span>
-        <span class="k">if</span> <span class="s2">&quot;skymap samples&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--nsamples_for_skymap&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;skymap samples&quot;</span><span class="p">])]</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="s2">"cosmology"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--cosmology"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"cosmology"</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="s2">"redshift"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--redshift_method"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"redshift"</span><span class="p">]]</span>
+        <span class="k">if</span> <span class="s2">"skymap samples"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--nsamples_for_skymap"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"skymap samples"</span><span class="p">])]</span>
 
-        <span class="k">if</span> <span class="s2">&quot;evolve spins&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s2">&quot;forwards&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;evolve spins&quot;</span><span class="p">]:</span>
-                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--evolve_spins_fowards&quot;</span><span class="p">,</span> <span class="s2">&quot;True&quot;</span><span class="p">]</span>
-            <span class="k">if</span> <span class="s2">&quot;backwards&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;evolve spins&quot;</span><span class="p">]:</span>
-                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--evolve_spins_backwards&quot;</span><span class="p">,</span> <span class="s2">&quot;precession_averaged&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">"evolve spins"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">"forwards"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"evolve spins"</span><span class="p">]:</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--evolve_spins_fowards"</span><span class="p">,</span> <span class="s2">"True"</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">"backwards"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"evolve spins"</span><span class="p">]:</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--evolve_spins_backwards"</span><span class="p">,</span> <span class="s2">"precession_averaged"</span><span class="p">]</span>
 
-        <span class="k">if</span> <span class="s2">&quot;multiprocess&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--multi_process&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;multiprocess&quot;</span><span class="p">])]</span>
+        <span class="k">if</span> <span class="s2">"multiprocess"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--multi_process"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"multiprocess"</span><span class="p">])]</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;regenerate&quot;</span><span class="p">):</span>
-            <span class="n">posteriors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;regenerate posteriors&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"regenerate"</span><span class="p">):</span>
+            <span class="n">posteriors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"regenerate posteriors"</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">posteriors</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="n">PipelineException</span><span class="p">(</span>
-                    <span class="s2">&quot;postprocessing.pesummary.regenerate is set, but &quot;</span>
-                    <span class="s2">&quot;&#39;regenerate posteriors&#39; is missing or empty.&quot;</span>
+                    <span class="s2">"postprocessing.pesummary.regenerate is set, but "</span>
+                    <span class="s2">"'regenerate posteriors' is missing or empty."</span>
                 <span class="p">)</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--regenerate&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">posteriors</span><span class="p">)]</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--regenerate"</span><span class="p">,</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">posteriors</span><span class="p">)]</span>
 
-        <span class="k">if</span> <span class="s2">&quot;calculate&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="k">if</span> <span class="s2">&quot;precessing snr&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;calculate&quot;</span><span class="p">]:</span>
-                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--calculate_precessing_snr&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">"calculate"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">"precessing snr"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"calculate"</span><span class="p">]:</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--calculate_precessing_snr"</span><span class="p">]</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_submit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">dryrun</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Write the job script, build the submit description, and submit (or,</span>
 <span class="sd">        if ``dryrun``, just print what would happen). Shared by both the</span>
 <span class="sd">        single-analysis and subject-analysis submission paths.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">with</span> <span class="n">utils</span><span class="o">.</span><span class="n">set_directory</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">work_dir</span><span class="p">):</span>
-            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;pesummary.sh&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">bash_file</span><span class="p">:</span>
-                <span class="n">bash_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2"> &quot;</span> <span class="o">+</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">))</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"pesummary.sh"</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">bash_file</span><span class="p">:</span>
+                <span class="n">bash_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2"> "</span> <span class="o">+</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;PE summary command: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">"PE summary command: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="s1">' '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">dryrun</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;PESUMMARY COMMAND&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;-----------------&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">))</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"PESUMMARY COMMAND"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"-----------------"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subject</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">event</span>
         <span class="n">submit_description</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;executable&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
-            <span class="s2">&quot;arguments&quot;</span><span class="p">:</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">),</span>
-            <span class="s2">&quot;output&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">work_dir</span><span class="si">}</span><span class="s2">/pesummary.out&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">work_dir</span><span class="si">}</span><span class="s2">/pesummary.err&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;log&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">work_dir</span><span class="si">}</span><span class="s2">/pesummary.log&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;request_cpus&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;multiprocess&quot;</span><span class="p">],</span>
-            <span class="s2">&quot;getenv&quot;</span><span class="p">:</span> <span class="s2">&quot;true&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;batch_name&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Summary Pages/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;request_memory&quot;</span><span class="p">:</span> <span class="s2">&quot;8192MB&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;should_transfer_files&quot;</span><span class="p">:</span> <span class="s2">&quot;YES&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;request_disk&quot;</span><span class="p">:</span> <span class="s2">&quot;8192MB&quot;</span><span class="p">,</span>
+            <span class="s2">"executable"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
+            <span class="s2">"arguments"</span><span class="p">:</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">),</span>
+            <span class="s2">"output"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">work_dir</span><span class="si">}</span><span class="s2">/pesummary.out"</span><span class="p">,</span>
+            <span class="s2">"error"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">work_dir</span><span class="si">}</span><span class="s2">/pesummary.err"</span><span class="p">,</span>
+            <span class="s2">"log"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">work_dir</span><span class="si">}</span><span class="s2">/pesummary.log"</span><span class="p">,</span>
+            <span class="s2">"request_cpus"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"multiprocess"</span><span class="p">],</span>
+            <span class="s2">"getenv"</span><span class="p">:</span> <span class="s2">"true"</span><span class="p">,</span>
+            <span class="s2">"batch_name"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"Summary Pages/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">subject</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="s2">"request_memory"</span><span class="p">:</span> <span class="s2">"8192MB"</span><span class="p">,</span>
+            <span class="s2">"should_transfer_files"</span><span class="p">:</span> <span class="s2">"YES"</span><span class="p">,</span>
+            <span class="s2">"request_disk"</span><span class="p">:</span> <span class="s2">"8192MB"</span><span class="p">,</span>
         <span class="p">}</span>
-        <span class="k">if</span> <span class="s2">&quot;accounting group&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
-            <span class="n">submit_description</span><span class="p">[</span><span class="s2">&quot;accounting_group_user&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;condor&quot;</span><span class="p">,</span> <span class="s2">&quot;user&quot;</span><span class="p">)</span>
-            <span class="n">submit_description</span><span class="p">[</span><span class="s2">&quot;accounting_group&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;accounting group&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">"accounting group"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">:</span>
+            <span class="n">submit_description</span><span class="p">[</span><span class="s2">"accounting_group_user"</span><span class="p">]</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"condor"</span><span class="p">,</span> <span class="s2">"user"</span><span class="p">)</span>
+            <span class="n">submit_description</span><span class="p">[</span><span class="s2">"accounting_group"</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"accounting group"</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">dryrun</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;SUBMIT DESCRIPTION&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;------------------&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"SUBMIT DESCRIPTION"</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">"------------------"</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="n">submit_description</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">dryrun</span><span class="p">:</span>
@@ -467,9 +494,9 @@
 <div class="viewcode-block" id="PESummary.submit_dag">
 <a class="viewcode-back" href="../../api.html#asimov_pesummary.pesummary.PESummary.submit_dag">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">submit_dag</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Run PESummary on the results of this job.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_subject_analysis</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_subject_analysis</span><span class="p">(</span><span class="n">dryrun</span><span class="o">=</span><span class="n">dryrun</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_single_analysis</span><span class="p">(</span><span class="n">dryrun</span><span class="o">=</span><span class="n">dryrun</span><span class="p">)</span></div>
@@ -481,63 +508,63 @@
         <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
         <span class="n">label</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 
-        <span class="n">command</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;--webdir&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_webdir</span><span class="p">(),</span> <span class="s2">&quot;--labels&quot;</span><span class="p">,</span> <span class="n">label</span><span class="p">]</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"--webdir"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_webdir</span><span class="p">(),</span> <span class="s2">"--labels"</span><span class="p">,</span> <span class="n">label</span><span class="p">]</span>
 
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--gw&quot;</span><span class="p">]</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--gw"</span><span class="p">]</span>
         <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span>
-            <span class="s2">&quot;--approximant&quot;</span><span class="p">,</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;waveform&quot;</span><span class="p">][</span><span class="s2">&quot;approximant&quot;</span><span class="p">],</span>
+            <span class="s2">"--approximant"</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"waveform"</span><span class="p">][</span><span class="s2">"approximant"</span><span class="p">],</span>
         <span class="p">]</span>
 
         <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span>
-            <span class="s2">&quot;--f_low&quot;</span><span class="p">,</span>
-            <span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;waveform&quot;</span><span class="p">][</span><span class="s2">&quot;minimum frequency&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())),</span>
-            <span class="s2">&quot;--f_ref&quot;</span><span class="p">,</span>
-            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;waveform&quot;</span><span class="p">][</span><span class="s2">&quot;reference frequency&quot;</span><span class="p">]),</span>
+            <span class="s2">"--f_low"</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"waveform"</span><span class="p">][</span><span class="s2">"minimum frequency"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())),</span>
+            <span class="s2">"--f_ref"</span><span class="p">,</span>
+            <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"waveform"</span><span class="p">][</span><span class="s2">"reference frequency"</span><span class="p">]),</span>
         <span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_append_shared_options</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="s2">&quot;nrsur&quot;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">&quot;waveform&quot;</span><span class="p">][</span><span class="s2">&quot;approximant&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--NRSur_fits&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">"nrsur"</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="s2">"waveform"</span><span class="p">][</span><span class="s2">"approximant"</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--NRSur_fits"</span><span class="p">]</span>
 
         <span class="c1"># Config file</span>
         <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span>
-            <span class="s2">&quot;--config&quot;</span><span class="p">,</span>
+            <span class="s2">"--config"</span><span class="p">,</span>
             <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">directory</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">category</span><span class="p">,</span> <span class="n">configfile</span>
             <span class="p">),</span>
         <span class="p">]</span>
         <span class="c1"># Samples</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--samples&quot;</span><span class="p">]</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">_previous_assets</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;samples&quot;</span><span class="p">,</span> <span class="p">{})]</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--samples"</span><span class="p">]</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">_previous_assets</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"samples"</span><span class="p">,</span> <span class="p">{})]</span>
 
         <span class="c1"># PSDs</span>
         <span class="n">psds</span> <span class="o">=</span> <span class="p">{</span>
             <span class="n">ifo</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">psd</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">ifo</span><span class="p">,</span> <span class="n">psd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">_previous_assets</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;psds&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">ifo</span><span class="p">,</span> <span class="n">psd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">_previous_assets</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"psds"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
         <span class="p">}</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">psds</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--psds&quot;</span><span class="p">]</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--psds"</span><span class="p">]</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">psds</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
 
         <span class="c1"># Calibration envelopes</span>
         <span class="n">cals</span> <span class="o">=</span> <span class="p">{</span>
             <span class="n">ifo</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">psd</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">ifo</span><span class="p">,</span> <span class="n">psd</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">_previous_assets</span><span class="p">()</span>
-            <span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;calibration&quot;</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"calibration"</span><span class="p">,</span> <span class="p">{})</span>
             <span class="o">.</span><span class="n">items</span><span class="p">()</span>
         <span class="p">}</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">cals</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--calibration&quot;</span><span class="p">]</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--calibration"</span><span class="p">]</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">cals</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">dryrun</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_submit_subject_analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Run PESummary on the combined results of several source analyses.</span>
 
 <span class="sd">        On the first run (or if an analysis has been removed from the</span>
@@ -546,12 +573,12 @@
 <span class="sd">        an already-published page, just the new analyses are submitted,</span>
 <span class="sd">        using ``summarypages --add_to_existing`` to append them in place</span>
 <span class="sd">        rather than recombining everything from scratch.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">source_analyses</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">analyses</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">source_analyses</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">PipelineException</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;PESummary subject analysis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> has no &quot;</span>
-                <span class="s2">&quot;resolved source analyses.&quot;</span>
+                <span class="sa">f</span><span class="s2">"PESummary subject analysis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> has no "</span>
+                <span class="s2">"resolved source analyses."</span>
             <span class="p">)</span>
 
         <span class="n">current_names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">analysis</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">analysis</span> <span class="ow">in</span> <span class="n">source_analyses</span><span class="p">)</span>
@@ -562,7 +589,7 @@
             <span class="n">previous_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="ow">and</span> <span class="nb">set</span><span class="p">(</span><span class="n">previous_names</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">current_names</span><span class="p">)</span>
             <span class="ow">and</span> <span class="nb">set</span><span class="p">(</span><span class="n">current_names</span><span class="p">)</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">previous_names</span><span class="p">)</span>
-            <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">webdir</span><span class="p">,</span> <span class="s2">&quot;home.html&quot;</span><span class="p">))</span>
+            <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">webdir</span><span class="p">,</span> <span class="s2">"home.html"</span><span class="p">))</span>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">incremental</span><span class="p">:</span>
@@ -580,29 +607,29 @@
 
         <span class="k">for</span> <span class="n">analysis</span> <span class="ow">in</span> <span class="n">analyses_to_submit</span><span class="p">:</span>
             <span class="n">assets</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">collect_assets</span><span class="p">()</span>
-            <span class="n">samples</span> <span class="o">=</span> <span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;samples&quot;</span><span class="p">)</span>
+            <span class="n">samples</span> <span class="o">=</span> <span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"samples"</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">samples</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;No samples available for </span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">; skipping&quot;</span>
+                    <span class="sa">f</span><span class="s2">"No samples available for </span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">; skipping"</span>
                 <span class="p">)</span>
                 <span class="k">continue</span>
 
-            <span class="n">waveform</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;waveform&quot;</span><span class="p">,</span> <span class="p">{})</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="p">{</span><span class="s2">&quot;approximant&quot;</span><span class="p">,</span> <span class="s2">&quot;minimum frequency&quot;</span><span class="p">,</span> <span class="s2">&quot;reference frequency&quot;</span><span class="p">}</span> <span class="o">&lt;=</span> <span class="p">(</span>
+            <span class="n">waveform</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"waveform"</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="p">{</span><span class="s2">"approximant"</span><span class="p">,</span> <span class="s2">"minimum frequency"</span><span class="p">,</span> <span class="s2">"reference frequency"</span><span class="p">}</span> <span class="o">&lt;=</span> <span class="p">(</span>
                 <span class="n">waveform</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
             <span class="p">):</span>
                 <span class="k">raise</span> <span class="n">PipelineException</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;PESummary subject analysis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is missing waveform configuration &quot;</span>
-                    <span class="s2">&quot;(approximant / minimum frequency / reference frequency) &quot;</span>
-                    <span class="s2">&quot;required to combine it.&quot;</span>
+                    <span class="sa">f</span><span class="s2">"PESummary subject analysis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: "</span>
+                    <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> is missing waveform configuration "</span>
+                    <span class="s2">"(approximant / minimum frequency / reference frequency) "</span>
+                    <span class="s2">"required to combine it."</span>
                 <span class="p">)</span>
 
             <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">analysis</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
             <span class="n">samples_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">samples</span><span class="p">)</span>
-            <span class="n">approximants</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">waveform</span><span class="p">[</span><span class="s2">&quot;approximant&quot;</span><span class="p">])</span>
-            <span class="n">f_lows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">waveform</span><span class="p">[</span><span class="s2">&quot;minimum frequency&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
-            <span class="n">f_refs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">waveform</span><span class="p">[</span><span class="s2">&quot;reference frequency&quot;</span><span class="p">]))</span>
+            <span class="n">approximants</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">waveform</span><span class="p">[</span><span class="s2">"approximant"</span><span class="p">])</span>
+            <span class="n">f_lows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">waveform</span><span class="p">[</span><span class="s2">"minimum frequency"</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
+            <span class="n">f_refs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">waveform</span><span class="p">[</span><span class="s2">"reference frequency"</span><span class="p">]))</span>
 
             <span class="n">configfile</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">find_prods</span><span class="p">(</span>
                 <span class="n">analysis</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">analysis</span><span class="o">.</span><span class="n">category</span>
@@ -616,55 +643,55 @@
             <span class="k">if</span> <span class="ow">not</span> <span class="n">psds</span><span class="p">:</span>
                 <span class="n">psds</span> <span class="o">=</span> <span class="p">{</span>
                     <span class="n">ifo</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">psd</span><span class="p">)</span>
-                    <span class="k">for</span> <span class="n">ifo</span><span class="p">,</span> <span class="n">psd</span> <span class="ow">in</span> <span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;psds&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">ifo</span><span class="p">,</span> <span class="n">psd</span> <span class="ow">in</span> <span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"psds"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
                 <span class="p">}</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">cals</span><span class="p">:</span>
                 <span class="n">cals</span> <span class="o">=</span> <span class="p">{</span>
                     <span class="n">ifo</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">cal</span><span class="p">)</span>
-                    <span class="k">for</span> <span class="n">ifo</span><span class="p">,</span> <span class="n">cal</span> <span class="ow">in</span> <span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;calibration&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">ifo</span><span class="p">,</span> <span class="n">cal</span> <span class="ow">in</span> <span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"calibration"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
                 <span class="p">}</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">labels</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">PipelineException</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;PESummary subject analysis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> has no &quot;</span>
-                <span class="s2">&quot;analyses with samples to add.&quot;</span>
+                <span class="sa">f</span><span class="s2">"PESummary subject analysis </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> has no "</span>
+                <span class="s2">"analyses with samples to add."</span>
             <span class="p">)</span>
 
-        <span class="n">command</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;--webdir&quot;</span><span class="p">,</span> <span class="n">webdir</span><span class="p">,</span> <span class="s2">&quot;--labels&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">labels</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--gw&quot;</span><span class="p">]</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--approximant&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">approximants</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--f_low&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">f_lows</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--f_ref&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">f_refs</span>
+        <span class="n">command</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"--webdir"</span><span class="p">,</span> <span class="n">webdir</span><span class="p">,</span> <span class="s2">"--labels"</span><span class="p">]</span> <span class="o">+</span> <span class="n">labels</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--gw"</span><span class="p">]</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--approximant"</span><span class="p">]</span> <span class="o">+</span> <span class="n">approximants</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--f_low"</span><span class="p">]</span> <span class="o">+</span> <span class="n">f_lows</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--f_ref"</span><span class="p">]</span> <span class="o">+</span> <span class="n">f_refs</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_append_shared_options</span><span class="p">(</span><span class="n">command</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">&quot;nrsur&quot;</span> <span class="ow">in</span> <span class="n">approximant</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">approximant</span> <span class="ow">in</span> <span class="n">approximants</span><span class="p">):</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--NRSur_fits&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="s2">"nrsur"</span> <span class="ow">in</span> <span class="n">approximant</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">for</span> <span class="n">approximant</span> <span class="ow">in</span> <span class="n">approximants</span><span class="p">):</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--NRSur_fits"</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">incremental</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--add_to_existing&quot;</span><span class="p">,</span> <span class="s2">&quot;--existing_webdir&quot;</span><span class="p">,</span> <span class="n">webdir</span><span class="p">]</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--add_to_existing"</span><span class="p">,</span> <span class="s2">"--existing_webdir"</span><span class="p">,</span> <span class="n">webdir</span><span class="p">]</span>
 
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--config&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">config_list</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--samples&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">samples_list</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--config"</span><span class="p">]</span> <span class="o">+</span> <span class="n">config_list</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--samples"</span><span class="p">]</span> <span class="o">+</span> <span class="n">samples_list</span>
 
         <span class="k">if</span> <span class="n">psds</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--psds&quot;</span><span class="p">]</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--psds"</span><span class="p">]</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">psds</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">cals</span><span class="p">:</span>
-            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">&quot;--calibration&quot;</span><span class="p">]</span>
+            <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--calibration"</span><span class="p">]</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">cals</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+                <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
 
         <span class="c1"># Set before submitting (matching the single-analysis convention of</span>
-        <span class="c1"># treating &quot;submitted&quot; as &quot;resolved&quot;), so a later refresh&#39;s</span>
+        <span class="c1"># treating "submitted" as "resolved"), so a later refresh's</span>
         <span class="c1"># staleness check compares against what this run is about to</span>
         <span class="c1"># process, and detect_completion_processing() knows which HDF5</span>
         <span class="c1"># groups to expect once it finishes. Use what was actually</span>
-        <span class="c1"># submitted (previously-resolved names plus this round&#39;s labels),</span>
+        <span class="c1"># submitted (previously-resolved names plus this round's labels),</span>
         <span class="c1"># not current_names -- an analysis skipped above (no samples yet)</span>
-        <span class="c1"># must stay unresolved, or it would never be considered &quot;new&quot; on a</span>
+        <span class="c1"># must stay unresolved, or it would never be considered "new" on a</span>
         <span class="c1"># later refresh once its samples do appear, and</span>
         <span class="c1"># detect_completion_processing() would expect an HDF5 group for it</span>
         <span class="c1"># that will never exist.</span>
