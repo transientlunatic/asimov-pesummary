@@ -502,6 +502,24 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_single_analysis</span><span class="p">(</span><span class="n">dryrun</span><span class="o">=</span><span class="n">dryrun</span><span class="p">)</span></div>
 
 
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_single_sample_path</span><span class="p">(</span><span class="n">samples</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Normalise a ``collect_assets()["samples"]`` value to a single path.</span>
+
+<span class="sd">        Different upstream pipelines return this differently: some (e.g.</span>
+<span class="sd">        bilby_pipe's ``Bilby.collect_assets``) return a list, built from a</span>
+<span class="sd">        glob lookup over the run directory; others already return a single</span>
+<span class="sd">        string. ``summarypages --samples`` takes one path per analysis</span>
+<span class="sd">        being submitted here, so pick the first entry when given a</span>
+<span class="sd">        list/tuple rather than passing the whole sequence through as a</span>
+<span class="sd">        single command argument -- which fails downstream (`" ".join`</span>
+<span class="sd">        raises ``TypeError``) once the command is assembled into a string.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">samples</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">samples</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">samples</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_submit_single_analysis</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dryrun</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
         <span class="n">configfile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">event</span><span class="o">.</span><span class="n">repository</span><span class="o">.</span><span class="n">find_prods</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">category</span>
@@ -536,8 +554,15 @@
             <span class="p">),</span>
         <span class="p">]</span>
         <span class="c1"># Samples</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--samples"</span><span class="p">]</span>
-        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">_previous_assets</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"samples"</span><span class="p">,</span> <span class="p">{})]</span>
+        <span class="n">sample_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_sample_path</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">_previous_assets</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"samples"</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">sample_path</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">PipelineException</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">"PESummary production </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">production</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> has no samples "</span>
+                <span class="s2">"available from its upstream analysis."</span>
+            <span class="p">)</span>
+        <span class="n">command</span> <span class="o">+=</span> <span class="p">[</span><span class="s2">"--samples"</span><span class="p">,</span> <span class="n">sample_path</span><span class="p">]</span>
 
         <span class="c1"># PSDs</span>
         <span class="n">psds</span> <span class="o">=</span> <span class="p">{</span>
@@ -607,7 +632,7 @@
 
         <span class="k">for</span> <span class="n">analysis</span> <span class="ow">in</span> <span class="n">analyses_to_submit</span><span class="p">:</span>
             <span class="n">assets</span> <span class="o">=</span> <span class="n">analysis</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">collect_assets</span><span class="p">()</span>
-            <span class="n">samples</span> <span class="o">=</span> <span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"samples"</span><span class="p">)</span>
+            <span class="n">samples</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_single_sample_path</span><span class="p">(</span><span class="n">assets</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"samples"</span><span class="p">))</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">samples</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">"No samples available for </span><span class="si">{</span><span class="n">analysis</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">; skipping"</span>
